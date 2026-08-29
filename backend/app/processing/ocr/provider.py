@@ -77,21 +77,23 @@ def run_ocr(image_path: str, screenshot_id: Optional[str] = None) -> OCRResult:
 
     try:
         print(f"[OCR] Initializing PaddleOCR engine...")
-        ocr_engine = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
+        ocr_engine = PaddleOCR(use_textline_orientation=True, lang="en")
 
         print(f"[OCR] Processing image: {image_path}")
-        raw_result = ocr_engine.ocr(image_path, cls=True)
+        # PaddleOCR v3+ uses predict() which returns a generator of result dicts
+        raw_results = list(ocr_engine.predict(image_path))
 
         blocks: list[OCRBlock] = []
 
-        # PaddleOCR returns List[List] — the outer list is per page/image
-        if raw_result and raw_result[0]:
-            for line in raw_result[0]:
-                # line = [ [[x1,y1],[x2,y2],[x3,y3],[x4,y4]], ('text', confidence) ]
-                box_points = line[0]
-                text = line[1][0]
-                confidence = float(line[1][1])
+        # Each item in raw_results corresponds to one image.
+        # Result dict keys: 'dt_polys' (polygon boxes), 'rec_texts', 'rec_scores'
+        for res in raw_results:
+            polys     = res.get("dt_polys",    []) or []
+            texts     = res.get("rec_texts",   []) or []
+            scores    = res.get("rec_scores",  []) or []
 
+            for box_points, text, confidence in zip(polys, texts, scores):
+                # box_points is a polygon: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
                 x_coords = [pt[0] for pt in box_points]
                 y_coords = [pt[1] for pt in box_points]
 
@@ -103,8 +105,8 @@ def run_ocr(image_path: str, screenshot_id: Optional[str] = None) -> OCRResult:
                 )
 
                 blocks.append(OCRBlock(
-                    text=text,
-                    confidence=round(confidence, 4),
+                    text=str(text),
+                    confidence=round(float(confidence), 4),
                     bounding_box=bbox,
                 ))
 
