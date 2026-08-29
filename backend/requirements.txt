@@ -12,6 +12,11 @@ psycopg2-binary>=2.9.9
 
 # ── Phase 3: Ingestion ─────────────────────────────────────
 pillow>=10.3.0
+opencv-python
+
+# ── Phase 5: OCR ──────────────────────────────────────────
+paddleocr
+paddlepaddle
 
 # ── Shared ────────────────────────────────────────────────
 pydantic>=2.7.0
