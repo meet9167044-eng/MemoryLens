@@ -9,6 +9,8 @@ sqlalchemy>=2.0.0
 alembic>=1.13.0
 pgvector>=0.2.4
 psycopg2-binary>=2.9.9
+
+# ── Phase 3: Ingestion ─────────────────────────────────────
 pillow>=10.3.0
 
 # ── Shared ────────────────────────────────────────────────
