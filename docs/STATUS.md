@@ -31,7 +31,7 @@
 - [x] Phase 5: OCR
 - [ ] Phase 6: Extraction
 - [ ] Phase 7: Embeddings
-- [ ] Phase 8: Search
+- [x] Phase 8: Search
 - [ ] Phase 9: Relationships
 - [ ] Phase 10: Pipeline
 - [ ] Phase 11: API
