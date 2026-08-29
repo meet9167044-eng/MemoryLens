@@ -5,20 +5,21 @@ env/
 
 # Python cache
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
+*.pyd
+.Python
 
 # Pytest cache
 .pytest_cache/
 
-# Environment variables
-.env.local
-.env.*.local
+# Environment variables (never commit secrets)
+.env
 
 # Distribution / packaging
+*.egg-info/
 dist/
 build/
-*.egg-info/
 
 # IDE
 .vscode/

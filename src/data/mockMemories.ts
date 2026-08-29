@@ -1,273 +1,293 @@
-import { Memory } from '@/types/memory';
+import { Memory } from '../types/memory';
 
 export const mockMemories: Memory[] = [
   {
-    id: "mem_1827",
-    timestamp: "2026-01-14T10:32:00",
-    source: { app: "VS Code", type: "desktop" },
-    screenshot: { id: "1827", imageUrl: "/synthetic/screenshots/1827.png" },
+    id: 'mem_1827',
+    timestamp: '2026-08-29T10:15:00Z',
+    source: {
+      app: 'VS Code',
+      type: 'desktop',
+    },
+    screenshot: {
+      id: 'img_1827',
+      imageUrl: 'https://placehold.co/800x450/1e1e1e/FFF?text=VS+Code+CUDA+Error',
+    },
     content: {
-      ocrText: "RuntimeError: CUDA out of memory...",
-      title: "CUDA Out of Memory Error",
-      summary: "A PyTorch process exceeded available GPU memory."
+      ocrText: 'RuntimeError: CUDA out of memory. Tried to allocate 512.00 MiB (GPU 0; 8.00 GiB total capacity; 6.50 GiB already allocated; 120.50 MiB free; 6.80 GiB reserved in total by PyTorch)',
+      title: 'CUDA Out of Memory Error',
+      summary: 'Encountered a CUDA OOM error while running a PyTorch training script.',
     },
     entities: [
-      { id: "entity_cuda", name: "CUDA", type: "technology" },
-      { id: "entity_pytorch", name: "PyTorch", type: "framework" },
-      { id: "entity_nvidia", name: "NVIDIA", type: "company" }
+      { id: 'ent_pytorch', name: 'PyTorch', type: 'framework' },
+      { id: 'ent_cuda', name: 'CUDA', type: 'technology' },
     ],
-    tags: ["error", "gpu", "python"],
+    tags: ['error', 'gpu', 'python'],
     relatedMemories: [
-      { memoryId: "mem_1842", relationship: "same_topic", similarityScore: 0.91 },
-      { memoryId: "mem_1809", relationship: "related_error", similarityScore: 0.87 }
+      { memoryId: 'mem_1828', relationship: 'same_topic' }
     ],
-    metadata: { language: "en", contentType: "error", confidence: 0.96 }
+    metadata: {
+      language: 'python',
+      contentType: 'code',
+      confidence: 0.95,
+    },
   },
   {
-    id: "mem_1842",
-    timestamp: "2026-01-14T11:15:00",
-    source: { app: "Chrome", type: "browser" },
-    screenshot: { id: "1842", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1828',
+    timestamp: '2026-08-29T10:20:00Z',
+    source: {
+      app: 'Chrome',
+      type: 'browser',
+    },
+    screenshot: {
+      id: 'img_1828',
+      imageUrl: 'https://placehold.co/800x450/2d2d2d/FFF?text=PyTorch+Docs',
+    },
     content: {
-      ocrText: "Understanding PyTorch Memory Management...",
-      title: "PyTorch GPU Optimization",
-      summary: "Reading PyTorch documentation on how to optimize GPU memory."
+      ocrText: 'Memory management in PyTorch. torch.cuda.empty_cache(). Releases all unoccupied cached memory currently held by the caching allocator so that those can be used in other GPU applications.',
+      title: 'Reading PyTorch Memory Management Docs',
+      summary: 'Looking up how to clear CUDA cache in PyTorch using torch.cuda.empty_cache().',
     },
     entities: [
-      { id: "entity_pytorch", name: "PyTorch", type: "framework" },
-      { id: "entity_gpu", name: "GPU", type: "technology" }
+      { id: 'ent_pytorch', name: 'PyTorch', type: 'framework' },
     ],
-    tags: ["gpu", "optimization", "learning"],
+    tags: ['documentation', 'gpu', 'python', 'fix'],
     relatedMemories: [
-      { memoryId: "mem_1827", relationship: "same_topic", similarityScore: 0.91 }
+      { memoryId: 'mem_1827', relationship: 'related_error' }
     ],
-    metadata: { language: "en", contentType: "documentation", confidence: 0.99 }
+    metadata: {
+      language: 'english',
+      contentType: 'documentation',
+      confidence: 0.92,
+    },
   },
   {
-    id: "mem_1809",
-    timestamp: "2026-01-13T09:42:00",
-    source: { app: "Terminal", type: "terminal" },
-    screenshot: { id: "1809", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1829',
+    timestamp: '2026-08-29T10:25:00Z',
+    source: {
+      app: 'Terminal',
+      type: 'terminal',
+    },
+    screenshot: {
+      id: 'img_1829',
+      imageUrl: 'https://placehold.co/800x450/000000/00FF00?text=nvidia-smi',
+    },
     content: {
-      ocrText: "nvidia-smi... Processes: python",
-      title: "GPU Configuration Check",
-      summary: "Ran nvidia-smi to check which processes are consuming GPU."
+      ocrText: '+-----------------------------------------------------------------------------------------+\n| NVIDIA-SMI 535.104.05             Driver Version: 535.104.05   CUDA Version: 12.2     |\n|-----------------------------------------+------------------------+----------------------+\n|   0  NVIDIA GeForce RTX 3080 ...    Off |   00000000:01:00.0  On |                  N/A |\n|  0%   45C    P8             17W /  320W |    6500MiB /  10240MiB |     73%      Default |',
+      title: 'Checking nvidia-smi in Terminal',
+      summary: 'Monitoring GPU memory usage after getting the CUDA out of memory error.',
     },
     entities: [
-      { id: "entity_nvidia", name: "NVIDIA", type: "company" },
-      { id: "entity_python", name: "Python", type: "technology" }
+      { id: 'ent_nvidia', name: 'NVIDIA', type: 'company' },
+      { id: 'ent_gpu', name: 'GPU', type: 'technology' },
     ],
-    tags: ["system", "gpu", "debugging"],
+    tags: ['terminal', 'gpu', 'monitoring'],
     relatedMemories: [
-      { memoryId: "mem_1827", relationship: "related_error", similarityScore: 0.87 }
+      { memoryId: 'mem_1827', relationship: 'related_error' }
     ],
-    metadata: { language: "en", contentType: "terminal_output", confidence: 0.95 }
+    metadata: {
+      language: 'bash',
+      contentType: 'logs',
+      confidence: 0.98,
+    },
   },
   {
-    id: "mem_1901",
-    timestamp: "2026-01-14T14:20:00",
-    source: { app: "Figma", type: "desktop" },
-    screenshot: { id: "1901", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1830',
+    timestamp: '2026-08-29T11:00:00Z',
+    source: {
+      app: 'Figma',
+      type: 'desktop',
+    },
+    screenshot: {
+      id: 'img_1830',
+      imageUrl: 'https://placehold.co/800x450/f5f5f5/333?text=Figma+UI+Design',
+    },
     content: {
-      ocrText: "MemoryLens Dashboard Design...",
-      title: "UI Design for Memory Explorer",
-      summary: "Designing the grid layout for the MemoryLens explorer screen."
+      ocrText: 'MemoryLens UI Prototype. Search bar, timeline view, recent memories grid. Typography: Inter, 14px.',
+      title: 'Designing MemoryLens UI',
+      summary: 'Working on the user interface mockups for the new MemoryLens web app in Figma.',
     },
     entities: [
-      { id: "entity_figma", name: "Figma", type: "tool" },
-      { id: "entity_memorylens", name: "MemoryLens", type: "project" }
+      { id: 'ent_figma', name: 'Figma', type: 'tool' },
+      { id: 'ent_memorylens', name: 'MemoryLens', type: 'project' },
     ],
-    tags: ["design", "ui", "project planning"],
+    tags: ['design', 'ui', 'prototype'],
     relatedMemories: [],
-    metadata: { language: "en", contentType: "design", confidence: 0.92 }
+    metadata: {
+      language: 'english',
+      contentType: 'design',
+      confidence: 0.9,
+    },
   },
   {
-    id: "mem_1905",
-    timestamp: "2026-01-14T15:00:00",
-    source: { app: "Slack", type: "desktop" },
-    screenshot: { id: "1905", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1831',
+    timestamp: '2026-08-29T11:45:00Z',
+    source: {
+      app: 'Slack',
+      type: 'desktop',
+    },
+    screenshot: {
+      id: 'img_1831',
+      imageUrl: 'https://placehold.co/800x450/4A154B/FFF?text=Slack+Conversation',
+    },
     content: {
-      ocrText: "Hey Virat, the new Figma designs look great. Can we implement the timeline view next?",
-      title: "Team Sync on Timeline Feature",
-      summary: "Discussing the implementation of the timeline view with the team."
+      ocrText: 'Alice: Hey Virat, did you push the latest UI changes?\nVirat: Working on them now. Should be ready by end of day.\nAlice: Great, let me know if you need help with the CSS.',
+      title: 'Slack Chat with Alice about UI',
+      summary: 'Discussing the timeline for the new UI changes with Alice in the #frontend channel.',
     },
     entities: [
-      { id: "entity_slack", name: "Slack", type: "tool" },
-      { id: "entity_memorylens", name: "MemoryLens", type: "project" }
+      { id: 'ent_alice', name: 'Alice', type: 'person' },
+      { id: 'ent_slack', name: 'Slack', type: 'tool' },
     ],
-    tags: ["communication", "project planning"],
+    tags: ['communication', 'team', 'ui'],
     relatedMemories: [
-      { memoryId: "mem_1901", relationship: "same_project", similarityScore: 0.85 }
+      { memoryId: 'mem_1830', relationship: 'same_project' }
     ],
-    metadata: { language: "en", contentType: "chat", confidence: 0.98 }
+    metadata: {
+      language: 'english',
+      contentType: 'chat',
+      confidence: 0.99,
+    },
   },
   {
-    id: "mem_1750",
-    timestamp: "2026-01-12T10:00:00",
-    source: { app: "Jupyter", type: "browser" },
-    screenshot: { id: "1750", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1832',
+    timestamp: '2026-08-29T13:15:00Z',
+    source: {
+      app: 'Chrome',
+      type: 'browser',
+    },
+    screenshot: {
+      id: 'img_1832',
+      imageUrl: 'https://placehold.co/800x450/202124/FFF?text=StackOverflow',
+    },
     content: {
-      ocrText: "import pandas as pd... df = pd.read_csv('dataset.csv')",
-      title: "Data Preprocessing Notebook",
-      summary: "Writing pandas scripts to clean up the initial training dataset."
+      ocrText: 'How to center a div in CSS? display: flex; justify-content: center; align-items: center;',
+      title: 'StackOverflow: Centering a Div',
+      summary: 'Looking up the best practices for centering elements vertically and horizontally in CSS.',
     },
     entities: [
-      { id: "entity_pandas", name: "Pandas", type: "framework" },
-      { id: "entity_python", name: "Python", type: "technology" }
+      { id: 'ent_css', name: 'CSS', type: 'technology' },
     ],
-    tags: ["data science", "python", "research"],
+    tags: ['css', 'frontend', 'help'],
     relatedMemories: [],
-    metadata: { language: "en", contentType: "code", confidence: 0.97 }
+    metadata: {
+      language: 'english',
+      contentType: 'forum',
+      confidence: 0.96,
+    },
   },
   {
-    id: "mem_1762",
-    timestamp: "2026-01-12T11:30:00",
-    source: { app: "Chrome", type: "browser" },
-    screenshot: { id: "1762", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1833',
+    timestamp: '2026-08-29T14:00:00Z',
+    source: {
+      app: 'VS Code',
+      type: 'desktop',
+    },
+    screenshot: {
+      id: 'img_1833',
+      imageUrl: 'https://placehold.co/800x450/1e1e1e/FFF?text=VS+Code+React',
+    },
     content: {
-      ocrText: "StackOverflow: How to handle NaN values in pandas...",
-      title: "Pandas NaN Handling",
-      summary: "Searching for best practices on dropping vs imputing missing values."
+      ocrText: 'import React, { useState, useEffect } from "react";\n\nexport const Timeline = () => {\n  const [data, setData] = useState([]);\n  // TODO: Fetch from memoryService\n};',
+      title: 'Writing React Timeline Component',
+      summary: 'Implementing the Timeline component for the MemoryLens frontend using React hooks.',
     },
     entities: [
-      { id: "entity_pandas", name: "Pandas", type: "framework" },
-      { id: "entity_stackoverflow", name: "StackOverflow", type: "tool" }
+      { id: 'ent_react', name: 'React', type: 'framework' },
+      { id: 'ent_memorylens', name: 'MemoryLens', type: 'project' },
     ],
-    tags: ["research", "data science"],
+    tags: ['react', 'frontend', 'code'],
     relatedMemories: [
-      { memoryId: "mem_1750", relationship: "same_topic", similarityScore: 0.88 }
+      { memoryId: 'mem_1830', relationship: 'same_project' }
     ],
-    metadata: { language: "en", contentType: "web_page", confidence: 0.94 }
+    metadata: {
+      language: 'typescript',
+      contentType: 'code',
+      confidence: 0.97,
+    },
   },
   {
-    id: "mem_1920",
-    timestamp: "2026-01-15T09:10:00",
-    source: { app: "VS Code", type: "desktop" },
-    screenshot: { id: "1920", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1834',
+    timestamp: '2026-08-29T15:30:00Z',
+    source: {
+      app: 'Notion',
+      type: 'document',
+    },
+    screenshot: {
+      id: 'img_1834',
+      imageUrl: 'https://placehold.co/800x450/FFF/000?text=Notion+Project+Specs',
+    },
     content: {
-      ocrText: "export const mockMemories: Memory[] = [...]",
-      title: "Implementing Mock Data",
-      summary: "Writing the mock data service for MemoryLens Phase 2."
+      ocrText: 'Sprint 4 Planning. Goal: Complete the synthetic data layer and UI screens. Tasks: 1. mockMemories.ts 2. memoryService 3. UI Pages.',
+      title: 'Reviewing Sprint 4 Goals in Notion',
+      summary: 'Checking the project specifications and tasks for Sprint 4 in Notion.',
     },
     entities: [
-      { id: "entity_typescript", name: "TypeScript", type: "technology" },
-      { id: "entity_memorylens", name: "MemoryLens", type: "project" }
+      { id: 'ent_notion', name: 'Notion', type: 'tool' },
     ],
-    tags: ["development", "web development"],
+    tags: ['planning', 'documentation', 'sprint'],
     relatedMemories: [],
-    metadata: { language: "en", contentType: "code", confidence: 0.99 }
+    metadata: {
+      language: 'english',
+      contentType: 'document',
+      confidence: 0.95,
+    },
   },
   {
-    id: "mem_1921",
-    timestamp: "2026-01-15T09:15:00",
-    source: { app: "Terminal", type: "terminal" },
-    screenshot: { id: "1921", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1835',
+    timestamp: '2026-08-29T16:00:00Z',
+    source: {
+      app: 'Terminal',
+      type: 'terminal',
+    },
+    screenshot: {
+      id: 'img_1835',
+      imageUrl: 'https://placehold.co/800x450/000000/00FF00?text=Git+Commit',
+    },
     content: {
-      ocrText: "npm run dev... VITE v5.4.1 ready in 250 ms",
-      title: "Starting Dev Server",
-      summary: "Booting up the Vite development server."
+      ocrText: '$ git commit -m "feat: Add mock memory data"\n[main 4f8b2a1] feat: Add mock memory data\n 1 file changed, 150 insertions(+)',
+      title: 'Committing Mock Data',
+      summary: 'Committing the initial mock memory data to the local Git repository.',
     },
     entities: [
-      { id: "entity_vite", name: "Vite", type: "tool" }
+      { id: 'ent_git', name: 'Git', type: 'technology' },
     ],
-    tags: ["system", "web development"],
-    relatedMemories: [
-      { memoryId: "mem_1920", relationship: "same_project", similarityScore: 0.82 }
-    ],
-    metadata: { language: "en", contentType: "terminal_output", confidence: 0.96 }
-  },
-  {
-    id: "mem_1930",
-    timestamp: "2026-01-15T11:00:00",
-    source: { app: "PDF Viewer", type: "document" },
-    screenshot: { id: "1930", imageUrl: "/synthetic/screenshots/generic.png" },
-    content: {
-      ocrText: "Attention Is All You Need. Vaswani et al...",
-      title: "Reading Transformer Paper",
-      summary: "Reviewing the original Transformer architecture for a new feature."
-    },
-    entities: [
-      { id: "entity_ai", name: "AI", type: "topic" }
-    ],
-    tags: ["research", "learning"],
+    tags: ['git', 'version-control', 'terminal'],
     relatedMemories: [],
-    metadata: { language: "en", contentType: "academic_paper", confidence: 0.91 }
+    metadata: {
+      language: 'bash',
+      contentType: 'logs',
+      confidence: 0.99,
+    },
   },
   {
-    id: "mem_1935",
-    timestamp: "2026-01-15T13:45:00",
-    source: { app: "Chrome", type: "browser" },
-    screenshot: { id: "1935", imageUrl: "/synthetic/screenshots/generic.png" },
+    id: 'mem_1836',
+    timestamp: '2026-08-29T16:45:00Z',
+    source: {
+      app: 'Chrome',
+      type: 'browser',
+    },
+    screenshot: {
+      id: 'img_1836',
+      imageUrl: 'https://placehold.co/800x450/202124/FFF?text=GitHub+PR',
+    },
     content: {
-      ocrText: "Hugging Face - Models: Transformer...",
-      title: "Browsing Hugging Face Models",
-      summary: "Looking for pre-trained models to test locally."
+      ocrText: 'Pull Request #42: Feature/frontend-ui-screens. Opened by virat. Reviewers: alice, bob. Checks passed.',
+      title: 'Reviewing GitHub Pull Request',
+      summary: 'Checking the status of the pull request for the frontend UI screens on GitHub.',
     },
     entities: [
-      { id: "entity_huggingface", name: "Hugging Face", type: "company" },
-      { id: "entity_ai", name: "AI", type: "topic" }
+      { id: 'ent_github', name: 'GitHub', type: 'tool' },
+      { id: 'ent_alice', name: 'Alice', type: 'person' },
+      { id: 'ent_bob', name: 'Bob', type: 'person' },
     ],
-    tags: ["research", "ai"],
+    tags: ['github', 'review', 'collaboration'],
     relatedMemories: [
-      { memoryId: "mem_1930", relationship: "same_topic", similarityScore: 0.89 }
+      { memoryId: 'mem_1835', relationship: 'same_topic' }
     ],
-    metadata: { language: "en", contentType: "web_page", confidence: 0.95 }
-  },
-  {
-    id: "mem_1940",
-    timestamp: "2026-01-15T15:20:00",
-    source: { app: "VS Code", type: "desktop" },
-    screenshot: { id: "1940", imageUrl: "/synthetic/screenshots/generic.png" },
-    content: {
-      ocrText: "function SearchBar() { return <input type='text' /> }",
-      title: "Building Search Component",
-      summary: "Implementing the UI for the search bar in the application shell."
+    metadata: {
+      language: 'english',
+      contentType: 'webpage',
+      confidence: 0.94,
     },
-    entities: [
-      { id: "entity_react", name: "React", type: "framework" },
-      { id: "entity_typescript", name: "TypeScript", type: "technology" }
-    ],
-    tags: ["development", "ui"],
-    relatedMemories: [
-      { memoryId: "mem_1920", relationship: "same_project", similarityScore: 0.90 }
-    ],
-    metadata: { language: "en", contentType: "code", confidence: 0.98 }
   },
-  {
-    id: "mem_1945",
-    timestamp: "2026-01-15T16:00:00",
-    source: { app: "Slack", type: "desktop" },
-    screenshot: { id: "1945", imageUrl: "/synthetic/screenshots/generic.png" },
-    content: {
-      ocrText: "The DevJams presentation is tomorrow at 10 AM.",
-      title: "DevJams Presentation Reminder",
-      summary: "Team channel update regarding the DevJams Review 1 schedule."
-    },
-    entities: [
-      { id: "entity_devjams", name: "DevJams", type: "project" }
-    ],
-    tags: ["communication", "planning"],
-    relatedMemories: [],
-    metadata: { language: "en", contentType: "chat", confidence: 0.99 }
-  },
-  {
-    id: "mem_1950",
-    timestamp: "2026-01-15T16:15:00",
-    source: { app: "Chrome", type: "browser" },
-    screenshot: { id: "1950", imageUrl: "/synthetic/screenshots/generic.png" },
-    content: {
-      ocrText: "Google Slides - MemoryLens Pitch Deck",
-      title: "Editing Pitch Deck",
-      summary: "Finalizing the slides for tomorrow's presentation."
-    },
-    entities: [
-      { id: "entity_devjams", name: "DevJams", type: "project" },
-      { id: "entity_memorylens", name: "MemoryLens", type: "project" }
-    ],
-    tags: ["documentation", "planning"],
-    relatedMemories: [
-      { memoryId: "mem_1945", relationship: "same_project", similarityScore: 0.95 }
-    ],
-    metadata: { language: "en", contentType: "document", confidence: 0.94 }
-  }
 ];

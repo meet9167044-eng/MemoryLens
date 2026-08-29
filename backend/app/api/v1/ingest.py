@@ -1,0 +1,153 @@
+"""
+POST /api/v1/ingest  — Screenshot Ingestion Endpoint (Phase 3)
+
+Accepts a multipart/form-data image upload, validates it,
+saves it to disk via StorageProvider, and creates a Screenshot
+record in the database with status=PENDING.
+
+Does NOT run OCR or any AI processing (that is Phase 5+).
+"""
+import io
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from PIL import Image
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.db.session import get_db
+from app.models.screenshot import Screenshot, ScreenshotStatus
+from app.schemas.ingest import ErrorResponse, ScreenshotUploadResponse, ScreenshotStatusResponse
+from app.services.storage import storage
+
+router = APIRouter(prefix="/api/v1", tags=["ingestion"])
+
+MAX_FILE_SIZE = settings.MAX_FILE_SIZE_MB * 1024 * 1024  # bytes
+ALLOWED_MIME = set(settings.ALLOWED_MIME_TYPES)
+
+
+def _validate_image(data: bytes, content_type: str, filename: str) -> None:
+    """
+    Validates the uploaded file on three levels:
+    1. MIME type whitelist
+    2. File extension whitelist
+    3. Actual pixel-level decodability (Pillow verify)
+
+    Raises HTTPException(400) if any check fails.
+    """
+    # 1. MIME type check
+    if content_type not in ALLOWED_MIME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type '{content_type}'. Allowed: {sorted(ALLOWED_MIME)}",
+        )
+
+    # 2. Extension check
+    allowed_exts = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+    import os
+    ext = os.path.splitext(filename or "")[-1].lower()
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file extension '{ext}'. Allowed: {sorted(allowed_exts)}",
+        )
+
+    # 3. Decodability — try to open with Pillow to catch corrupted files
+    try:
+        img = Image.open(io.BytesIO(data))
+        img.verify()  # raises if file is corrupted
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File is corrupted or not a valid image: {exc}",
+        )
+
+
+@router.post(
+    "/ingest",
+    response_model=ScreenshotUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload a screenshot for ingestion",
+    description=(
+        "Accepts a PNG/JPEG/WEBP screenshot, validates it, saves it to disk, "
+        "and creates a PENDING Screenshot record in the database. "
+        "OCR and AI processing happen asynchronously in later pipeline stages."
+    ),
+)
+async def ingest_screenshot(
+    file: UploadFile = File(..., description="The screenshot image file to ingest"),
+    db: Session = Depends(get_db),
+) -> ScreenshotUploadResponse:
+    # ── 1. Read file bytes ─────────────────────────────────────────────────────
+    data = await file.read()
+
+    # ── 2. Size check ──────────────────────────────────────────────────────────
+    if len(data) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Max allowed: {settings.MAX_FILE_SIZE_MB} MB",
+        )
+
+    if len(data) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+
+    # ── 3. Validate MIME, extension, and decodability ─────────────────────────
+    _validate_image(data, file.content_type or "", file.filename or "upload.png")
+
+    # ── 4. Save to disk via StorageProvider ────────────────────────────────────
+    try:
+        storage_meta = storage.save(data, file.filename or "upload.png")
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File write error: {exc}",
+        )
+
+    # ── 5. Persist Screenshot record in DB ────────────────────────────────────
+    screenshot = Screenshot(
+        file_path=storage_meta["file_path"],
+        original_filename=file.filename,
+        file_size_bytes=str(storage_meta["file_size_bytes"]),
+        mime_type=file.content_type,
+        status=ScreenshotStatus.PENDING,
+    )
+    db.add(screenshot)
+    db.commit()
+    db.refresh(screenshot)
+
+    return ScreenshotUploadResponse(
+        screenshot_id=screenshot.id,
+        status=screenshot.status.value,
+        file_path=storage_meta["file_path"],
+        original_filename=file.filename or "upload.png",
+        file_size_bytes=storage_meta["file_size_bytes"],
+        file_hash=storage_meta["file_hash"],
+        message="Screenshot ingested successfully. Processing is queued.",
+    )
+
+
+@router.get(
+    "/ingest/{screenshot_id}",
+    response_model=ScreenshotStatusResponse,
+    summary="Get ingestion status of a screenshot",
+)
+def get_screenshot_status(screenshot_id: str, db: Session = Depends(get_db)):
+    """Returns the current status of an uploaded screenshot."""
+    import uuid as uuid_mod
+    try:
+        uid = uuid_mod.UUID(screenshot_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid screenshot ID format.")
+
+    ss = db.query(Screenshot).filter(Screenshot.id == uid).first()
+    if not ss:
+        raise HTTPException(status_code=404, detail="Screenshot not found.")
+
+    return ScreenshotStatusResponse(
+        screenshot_id=ss.id,
+        status=ss.status.value,
+        original_filename=ss.original_filename,
+        created_at=ss.created_at,
+    )

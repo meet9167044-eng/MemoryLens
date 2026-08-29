@@ -1,1 +1,1 @@
-# MemoryLens backend package
+# app package
