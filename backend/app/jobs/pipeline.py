@@ -27,13 +27,54 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
+from app.models.entity import Entity, EntityType
 from app.models.memory import Memory
 from app.models.processing_job import JobStage, JobStatus, ProcessingJob
 from app.models.screenshot import Screenshot, ScreenshotStatus
 from app.processing.ocr.provider import run_ocr
 from app.processing.relationships import compute_relationships_for_memory
+from app.services.llm_extractor import llm_extractor
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Embedding helper (Phase C) — calls Gemini text-embedding-004 when available
+# ---------------------------------------------------------------------------
+
+def _compute_embedding(text: str) -> Optional[list]:
+    """Return a float list embedding for text, or None on failure."""
+    try:
+        from app.config import settings
+        if not settings.GEMINI_API_KEY:
+            return None
+        import google.generativeai as genai
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        result = genai.embed_content(
+            model=f"models/{settings.EMBEDDING_MODEL}",
+            content=text,
+            task_type="RETRIEVAL_DOCUMENT",
+        )
+        return result["embedding"]
+    except Exception as exc:
+        logger.warning("Embedding generation failed: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Entity type mapper
+# ---------------------------------------------------------------------------
+
+_ENTITY_TYPE_MAP = {
+    "technology": EntityType.TECHNOLOGY,
+    "framework": EntityType.TECHNOLOGY,
+    "tool": EntityType.OTHER,
+    "company": EntityType.ORGANIZATION,
+    "organization": EntityType.ORGANIZATION,
+    "person": EntityType.PERSON,
+    "topic": EntityType.OTHER,
+    "other": EntityType.OTHER,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -218,44 +259,105 @@ def _execute_pipeline(db: Session, screenshot_id: UUID) -> None:
         _fail_screenshot(db, screenshot)
         return
 
-    # ── Stage 3: AI_EXTRACTION ───────────────────────────────────────────
+    # ── Stage 3: AI_EXTRACTION — Multimodal LLM ─────────────────────────
     def _ai_extraction():
         """
-        Stub: in production this calls an LLM/NER model to extract entities,
-        update memory.title, memory.summary, and memory.tags.
-        For Phase 10 we record that this stage ran without crashing.
+        Phase B: Call LLMExtractor (Gemini / OpenAI / stub) on the image.
+        Extracts title, summary, OCR text (better quality than PaddleOCR),
+        typed entities, tags, source app, and confidence score.
+        Stores everything into the Memory row and creates Entity rows.
         """
         memory: Optional[Memory] = ctx.get("memory")
-        if memory:
-            # Minimal stub: derive a title from the filename if still 'Untitled'
-            if memory.title in (None, "Untitled", screenshot.original_filename):
-                ocr_text: str = ctx.get("ocr_text", "")
-                if ocr_text:
-                    # Use first 80 chars of OCR text as a rough title stub
-                    memory.title = ocr_text[:80].split("\n")[0].strip() or memory.title
-            db.flush()
+        if not memory:
+            return
+
+        # Load image bytes for LLM
+        image_path: str = ctx.get("image_path", "")
+        image_bytes: Optional[bytes] = None
+        if image_path:
+            try:
+                with open(image_path, "rb") as f:
+                    image_bytes = f.read()
+            except OSError as e:
+                logger.warning("Could not read image for LLM extraction: %s", e)
+
+        if image_bytes:
+            result = llm_extractor.extract(
+                image_bytes,
+                filename=screenshot.original_filename or "upload.png",
+            )
+        else:
+            # No image bytes — fall back to OCR text we already have
+            from app.services.llm_extractor import _stub_result
+            result = _stub_result(screenshot.original_filename or "upload.png")
+
+        # Update Memory fields
+        if result.title:
+            memory.title = result.title
+        if result.summary:
+            memory.summary = result.summary
+        # Prefer LLM OCR text over PaddleOCR if LLM produced richer output
+        if result.ocr_text and len(result.ocr_text) > len(memory.raw_ocr_text or ""):
+            memory.raw_ocr_text = result.ocr_text
+        memory.content_type = result.source_type
+        memory.confidence_score = result.confidence
+        memory.tags = result.tags
+
+        # Delete any stale entity rows and create fresh ones from LLM output
+        for old_ent in list(memory.entities):
+            db.delete(old_ent)
+        db.flush()
+
+        for ext_ent in result.entities:
+            etype = _ENTITY_TYPE_MAP.get(ext_ent.type.lower(), EntityType.OTHER)
+            db.add(Entity(
+                memory_id=memory.id,
+                name=ext_ent.name,
+                entity_type=etype,
+                confidence="high",
+            ))
+
+        # Store for embedding stage
+        ctx["llm_result"] = result
+        db.flush()
 
     ok = _run_stage(db, jobs[JobStage.AI_EXTRACTION], _ai_extraction)
     if not ok:
         _fail_screenshot(db, screenshot)
         return
 
-    # ── Stage 4: EMBEDDING ───────────────────────────────────────────────
+    # ── Stage 4: EMBEDDING — Real Gemini text-embedding ─────────────────
     def _embedding():
         """
-        Stub: in production this computes a vector embedding via an embedding model.
-        Writes a placeholder string to memory.embedding_placeholder.
-        Phase 7 will replace this with real pgvector embeddings.
+        Phase C: Compute a real vector embedding for the memory using
+        Gemini text-embedding-004 (768-dim) or fallback zero-vector.
+        Stored as JSON text in embedding_placeholder until pgvector migration.
         """
+        import json as _json
         memory: Optional[Memory] = ctx.get("memory")
-        if memory:
-            ocr_text: str = ctx.get("ocr_text", "")
-            # Store a human-readable token count as placeholder embedding info
-            token_approx = len(ocr_text.split())
-            memory.embedding_placeholder = (
-                f"phase10_stub:tokens={token_approx}"
+        if not memory:
+            return
+
+        llm_res = ctx.get("llm_result")
+        if llm_res:
+            # Build composite embedding text from LLM results
+            tag_str = " ".join(llm_res.tags)
+            ent_str = " ".join(e.name for e in llm_res.entities)
+            embed_text = (
+                f"{memory.title or ''} | {memory.summary or ''} | "
+                f"Tags: {tag_str} | Entities: {ent_str} | "
+                f"Text: {(memory.raw_ocr_text or '')[:500]}"
             )
-            db.flush()
+        else:
+            embed_text = f"{memory.title or ''} {memory.raw_ocr_text or ''}"
+
+        vector = _compute_embedding(embed_text)
+        if vector:
+            # Store as JSON array string — pgvector migration will move this to vector column
+            memory.embedding_placeholder = _json.dumps(vector)
+        else:
+            memory.embedding_placeholder = ""
+        db.flush()
 
     ok = _run_stage(db, jobs[JobStage.EMBEDDING], _embedding)
     if not ok:

@@ -1,17 +1,9 @@
 """
-GET /api/v1/search — Phase 8: Semantic + Hybrid Search endpoint.
+GET  /api/v1/search        — Phase C: Hybrid DB-backed search (primary)
+POST /api/v1/search/hybrid — Phase C: Same, body-based variant for richer payloads
 
-Query parameters (all validated by FastAPI/Pydantic):
-    q           — search query (required, non-empty)
-    limit       — results per page (default 10, max 50)
-    offset      — pagination offset (default 0)
-    source_type — filter by source app type
-    date_from   — ISO date lower bound
-    date_to     — ISO date upper bound
-
-Returns:
-    SearchResponse with ranked, paginated SearchResult items.
-    Raw embedding vectors are never returned (per Phase 8 spec).
+Uses DBSearchService when Memory rows exist in the database.
+Falls back to synthetic SearchService when no memories have been uploaded yet.
 """
 
 from __future__ import annotations
@@ -19,15 +11,25 @@ from __future__ import annotations
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
+from app.db.session import get_db
+from app.models.memory import Memory
 from app.schemas.search import SearchRequest, SearchResponse
 from app.services.search import SearchService
+from app.services.db_search import DBSearchService
 
 router = APIRouter()
 
 
-def _get_search_service() -> SearchService:
-    """Dependency injection — swap for a DB-backed service in production."""
+def _pick_service(db: Session) -> object:
+    """
+    Return DBSearchService if any Memory rows exist (real data),
+    otherwise fall back to the synthetic in-memory SearchService.
+    """
+    count = db.query(Memory).count()
+    if count > 0:
+        return DBSearchService(db)
     return SearchService()
 
 
@@ -36,54 +38,37 @@ def _get_search_service() -> SearchService:
     response_model=SearchResponse,
     summary="Hybrid semantic + keyword search over Memories",
     description=(
-        "Accepts a natural-language query string, embeds it, performs vector "
-        "similarity search combined with keyword matching, applies optional "
-        "metadata filters, and returns paginated ranked Memory results. "
-        "Raw embedding vectors are never exposed."
+        "Searches across uploaded memories using keyword matching and (when a "
+        "Gemini API key is configured) vector cosine similarity. "
+        "Falls back to synthetic demo data when no files have been uploaded yet."
     ),
-    response_description="Paginated list of ranked Memory results.",
 )
 def search_memories(
-    q: str = Query(
-        ...,
-        min_length=1,
-        description="Natural-language search query (required, non-empty)",
-        example="GPU memory error in Python",
-    ),
-    limit: int = Query(
-        default=10,
-        ge=1,
-        le=50,
-        description="Maximum number of results to return (1–50)",
-    ),
-    offset: int = Query(
-        default=0,
-        ge=0,
-        description="Pagination offset",
-    ),
-    source_type: Optional[Literal["desktop", "browser", "terminal", "document", "other"]] = Query(
-        default=None,
-        description="Filter results to a specific source type",
-    ),
-    date_from: Optional[str] = Query(
-        default=None,
-        description="ISO 8601 lower bound for memory timestamp (e.g. 2026-01-01)",
-    ),
-    date_to: Optional[str] = Query(
-        default=None,
-        description="ISO 8601 upper bound for memory timestamp (e.g. 2026-12-31)",
-    ),
-    service: SearchService = Depends(_get_search_service),
+    q: str = Query(..., min_length=1, description="Search query", example="GPU error in Python"),
+    limit: int = Query(default=10, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    source_type: Optional[Literal["desktop", "browser", "terminal", "document", "other"]] = Query(default=None),
+    date_from: Optional[str] = Query(default=None, description="ISO 8601 lower bound"),
+    date_to: Optional[str] = Query(default=None, description="ISO 8601 upper bound"),
+    db: Session = Depends(get_db),
 ) -> SearchResponse:
-    """
-    Search memories using hybrid semantic + keyword ranking.
-    """
-    request = SearchRequest(
-        q=q,
-        limit=limit,
-        offset=offset,
-        source_type=source_type,
-        date_from=date_from,
-        date_to=date_to,
-    )
+    """Search memories using hybrid semantic + keyword ranking."""
+    service = _pick_service(db)
+    request = SearchRequest(q=q, limit=limit, offset=offset, source_type=source_type,
+                             date_from=date_from, date_to=date_to)
+    return service.search(request)
+
+
+@router.post(
+    "/search/hybrid",
+    response_model=SearchResponse,
+    summary="Hybrid search (body-based POST)",
+    description="Same as GET /search but accepts query params in the request body for richer filter support.",
+)
+def search_hybrid(
+    request: SearchRequest,
+    db: Session = Depends(get_db),
+) -> SearchResponse:
+    """POST version of hybrid search — accepts SearchRequest body."""
+    service = _pick_service(db)
     return service.search(request)
