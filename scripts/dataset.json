@@ -1,0 +1,202 @@
+[
+  {
+    "id": "mem_1827",
+    "timestamp": "2026-01-14T10:32:00",
+    "source": {
+      "app": "VS Code",
+      "type": "desktop"
+    },
+    "screenshot": {
+      "id": "1827",
+      "imageUrl": "/synthetic/screenshots/1827.png"
+    },
+    "content": {
+      "title": "CUDA Out of Memory Error",
+      "summary": "A PyTorch process exceeded available GPU memory during CNN training.",
+      "ocrText": "RuntimeError: CUDA out of memory. Tried to allocate 1.45 GiB (GPU 0; 8.00 GiB total capacity)"
+    },
+    "entities": [
+      {
+        "id": "entity_cuda",
+        "name": "CUDA",
+        "type": "technology"
+      },
+      {
+        "id": "entity_pytorch",
+        "name": "PyTorch",
+        "type": "framework"
+      },
+      {
+        "id": "entity_nvidia",
+        "name": "NVIDIA",
+        "type": "company"
+      }
+    ],
+    "tags": [
+      "error",
+      "gpu",
+      "python",
+      "cuda"
+    ],
+    "metadata": {
+      "language": "Python",
+      "contentType": "error",
+      "confidence": 0.96
+    }
+  },
+  {
+    "id": "mem_1842",
+    "timestamp": "2026-01-14T11:15:00",
+    "source": {
+      "app": "Chrome",
+      "type": "browser"
+    },
+    "screenshot": {
+      "id": "1842",
+      "imageUrl": "/synthetic/screenshots/1842.png"
+    },
+    "content": {
+      "title": "PyTorch GPU Memory Management Docs",
+      "summary": "Official PyTorch documentation on PYTORCH_CUDA_ALLOC_CONF settings.",
+      "ocrText": "Memory Management \u2014 PyTorch 2.1 documentation. Set max_split_size_mb to avoid fragmentation."
+    },
+    "entities": [
+      {
+        "id": "entity_pytorch",
+        "name": "PyTorch",
+        "type": "framework"
+      },
+      {
+        "id": "entity_cuda",
+        "name": "CUDA",
+        "type": "technology"
+      }
+    ],
+    "tags": [
+      "documentation",
+      "gpu",
+      "python",
+      "pytorch"
+    ],
+    "metadata": {
+      "language": "English",
+      "contentType": "browser",
+      "confidence": 0.94
+    }
+  },
+  {
+    "id": "mem_1809",
+    "timestamp": "2026-01-12T14:20:00",
+    "source": {
+      "app": "Terminal",
+      "type": "terminal"
+    },
+    "screenshot": {
+      "id": "1809",
+      "imageUrl": "/synthetic/screenshots/1809.png"
+    },
+    "content": {
+      "title": "NVIDIA Driver Status check via nvidia-smi",
+      "summary": "Terminal check showing GPU 0 memory usage at 95% utilization.",
+      "ocrText": "nvidia-smi: Driver Version 535.104.05 CUDA Version 12.2. Volatile GPU-Util 98%"
+    },
+    "entities": [
+      {
+        "id": "entity_nvidia",
+        "name": "NVIDIA",
+        "type": "company"
+      },
+      {
+        "id": "entity_cuda",
+        "name": "CUDA",
+        "type": "technology"
+      }
+    ],
+    "tags": [
+      "terminal",
+      "gpu",
+      "nvidia",
+      "cuda"
+    ],
+    "metadata": {
+      "language": "Bash",
+      "contentType": "terminal",
+      "confidence": 0.98
+    }
+  },
+  {
+    "id": "mem_2001",
+    "timestamp": "2026-01-04T09:00:00",
+    "source": {
+      "app": "Chrome",
+      "type": "browser"
+    },
+    "screenshot": {
+      "id": "2001",
+      "imageUrl": "/synthetic/screenshots/2001.png"
+    },
+    "content": {
+      "title": "Google Software Engineering Internship Portal",
+      "summary": "Application submitted for Summer 2026 SWE Internship.",
+      "ocrText": "Application Received \u2014 Thank you for applying to Software Engineer Intern 2026."
+    },
+    "entities": [
+      {
+        "id": "entity_google",
+        "name": "Google",
+        "type": "company"
+      },
+      {
+        "id": "entity_internship",
+        "name": "DevJams Internship",
+        "type": "project"
+      }
+    ],
+    "tags": [
+      "internship",
+      "application",
+      "career",
+      "google"
+    ],
+    "metadata": {
+      "language": "English",
+      "contentType": "browser",
+      "confidence": 0.99
+    }
+  },
+  {
+    "id": "mem_2002",
+    "timestamp": "2026-01-10T16:45:00",
+    "source": {
+      "app": "Gmail",
+      "type": "browser"
+    },
+    "screenshot": {
+      "id": "2002",
+      "imageUrl": "/synthetic/screenshots/2002.png"
+    },
+    "content": {
+      "title": "Recruiter Email: Interview Invitation",
+      "summary": "Google recruiter inviting candidate to Technical Interview Round 1.",
+      "ocrText": "Google University Recruiting: Next steps for your Software Engineer Internship application."
+    },
+    "entities": [
+      {
+        "id": "entity_google",
+        "name": "Google",
+        "type": "company"
+      }
+    ],
+    "tags": [
+      "internship",
+      "email",
+      "interview",
+      "google"
+    ],
+    "metadata": {
+      "language": "English",
+      "contentType": "browser",
+      "confidence": 0.97
+    }
+  }
+]
