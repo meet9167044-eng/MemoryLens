@@ -127,7 +127,7 @@ def test_ocr_empty_image_returns_empty_blocks(MockPaddleOCR):
 
 def test_ocr_missing_paddleocr_returns_error():
     """If PaddleOCR is not installed, run_ocr should return an error message, not crash."""
-    with patch.dict("sys.modules", {"paddleocr": None}):
+    with patch("app.processing.ocr.provider.PaddleOCR", None):
         result = run_ocr("fake_image.png", screenshot_id="err_test")
 
     assert result.error is not None
