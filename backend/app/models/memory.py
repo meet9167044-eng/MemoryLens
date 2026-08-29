@@ -1,9 +1,15 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Float
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Float, JSON
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
+
+import os
+
+# Use standard JSON if running with SQLite in tests, otherwise JSONB for Postgres
+JSON_VARIANT = JSON if os.environ.get("TESTING", "") == "1" else JSONB
+
 
 # NOTE: embedding column is a Text placeholder.
 # Phase 7 member will run: ALTER TABLE memories ADD COLUMN embedding vector(1536)
@@ -20,7 +26,7 @@ class Memory(Base):
     summary = Column(Text, nullable=True)
     raw_ocr_text = Column(Text, nullable=True)
     content_type = Column(String(128), nullable=True)
-    tags = Column(JSONB, nullable=True, default=list)
+    tags = Column(JSON_VARIANT, nullable=True, default=list)
     confidence_score = Column(Float, nullable=True)
     # TODO (Phase 7): Replace with Vector(EMBEDDING_DIM) after pgvector is installed
     embedding_placeholder = Column(Text, nullable=True, comment="Placeholder for pgvector embedding — Phase 7 will migrate this to vector(1536)")
