@@ -1,69 +1,62 @@
-import { Memory } from '@/types/memory';
-import { mockMemories } from '@/data/mockMemories';
+import { Memory } from '../types/memory';
+import { mockMemories } from '../data/mockMemories';
 
 class MemoryService {
   private memories: Memory[] = mockMemories;
 
   async getMemories(): Promise<Memory[]> {
-    return Promise.resolve(this.memories.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    ));
+    // Simulate network delay
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve([...this.memories].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      }, 300);
+    });
   }
 
   async getMemoryById(id: string): Promise<Memory | undefined> {
-    return Promise.resolve(this.memories.find(m => m.id === id));
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(this.memories.find(m => m.id === id));
+      }, 200);
+    });
   }
 
   async searchMemories(query: string): Promise<Memory[]> {
-    const lowerQuery = query.toLowerCase();
-    const results = this.memories.filter(m => {
-      const inTitle = m.content.title.toLowerCase().includes(lowerQuery);
-      const inOcr = m.content.ocrText.toLowerCase().includes(lowerQuery);
-      const inSummary = m.content.summary.toLowerCase().includes(lowerQuery);
-      const inTags = m.tags.some(t => t.toLowerCase().includes(lowerQuery));
-      const inEntities = m.entities.some(e => e.name.toLowerCase().includes(lowerQuery));
-      
-      return inTitle || inOcr || inSummary || inTags || inEntities;
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const lowerQuery = query.toLowerCase();
+        const results = this.memories.filter(m => {
+          return (
+            m.content.title.toLowerCase().includes(lowerQuery) ||
+            m.content.summary.toLowerCase().includes(lowerQuery) ||
+            m.content.ocrText.toLowerCase().includes(lowerQuery) ||
+            m.tags.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
+            m.entities.some(e => e.name.toLowerCase().includes(lowerQuery))
+          );
+        });
+        resolve(results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      }, 300);
     });
-    
-    return Promise.resolve(results);
   }
 
-  async getInsights() {
-    // Return predefined synthetic patterns as requested in Phase 7 docs
-    return Promise.resolve([
-      {
-        id: 'insight_1',
-        title: 'GPU Debugging Pattern',
-        description: 'Several memories are related to GPU configuration, CUDA errors, and PyTorch optimization.',
-        memoryCount: 3,
-        type: 'recurring_pattern'
-      },
-      {
-        id: 'insight_2',
-        title: 'Project Planning',
-        description: 'You have been actively reviewing designs and communicating about MemoryLens.',
-        memoryCount: 4,
-        type: 'emerging_topic'
-      }
-    ]);
-  }
-  
-  async getRecentTopics(): Promise<{ topic: string; count: number }[]> {
-    return Promise.resolve([
-      { topic: 'CUDA', count: 342 },
-      { topic: 'PyTorch', count: 287 },
-      { topic: 'Python', count: 198 },
-      { topic: 'UI Design', count: 156 },
-    ]);
-  }
-  
-  async getActivitySummary() {
-    return Promise.resolve({
-      totalMemories: 1248,
-      totalConnections: 386,
-      totalTopics: 74,
-      activityTimeHrs: 32
+  async getRecentTopics(): Promise<{ name: string; count: number }[]> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const topicCounts: Record<string, number> = {};
+        
+        this.memories.forEach(memory => {
+          memory.tags.forEach(tag => {
+            topicCounts[tag] = (topicCounts[tag] || 0) + 1;
+          });
+        });
+
+        const sortedTopics = Object.entries(topicCounts)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5); // Return top 5
+
+        resolve(sortedTopics);
+      }, 200);
     });
   }
 }
