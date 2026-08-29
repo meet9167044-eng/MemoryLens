@@ -1,0 +1,25 @@
+# ── Phase 1: Backend Foundation ───────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+httpx>=0.24.1
+
+# ── Phase 2: Database ──────────────────────────────────────
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+pgvector>=0.2.4
+psycopg2-binary>=2.9.9
+
+# ── Phase 3: Ingestion ─────────────────────────────────────
+pillow>=10.3.0
+opencv-python
+
+# ── Phase 5: OCR ──────────────────────────────────────────
+paddleocr
+paddlepaddle
+
+# ── Shared ────────────────────────────────────────────────
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
+pytest>=8.0.0
