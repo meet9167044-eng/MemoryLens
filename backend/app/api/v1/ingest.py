@@ -13,6 +13,8 @@ import io
 import threading
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
+import os
 from PIL import Image
 from sqlalchemy.orm import Session
 
@@ -175,3 +177,26 @@ def get_screenshot_status(screenshot_id: str, db: Session = Depends(get_db)):
         original_filename=ss.original_filename,
         created_at=ss.created_at,
     )
+
+
+@router.get(
+    "/screenshots/{screenshot_id}/image",
+    summary="Get screenshot image",
+    description="Returns the raw image file for the screenshot."
+)
+def get_screenshot_image(screenshot_id: str, db: Session = Depends(get_db)):
+    """Serves the actual image file bytes."""
+    import uuid as uuid_mod
+    try:
+        uid = uuid_mod.UUID(screenshot_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid screenshot ID format.")
+
+    ss = db.query(Screenshot).filter(Screenshot.id == uid).first()
+    if not ss:
+        raise HTTPException(status_code=404, detail="Screenshot not found.")
+        
+    if not ss.file_path or not os.path.exists(ss.file_path):
+        raise HTTPException(status_code=404, detail="Image file not found on disk.")
+        
+    return FileResponse(ss.file_path, media_type=ss.mime_type or "image/png")

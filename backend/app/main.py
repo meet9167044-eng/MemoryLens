@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.v1 import health, search, memories
+from app.api.v1 import health, search, memories, timeline
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -41,3 +41,4 @@ if settings.CORS_ORIGINS:
 app.include_router(health.router, prefix=settings.API_V1_STR, tags=["health"])
 app.include_router(search.router, prefix=settings.API_V1_STR, tags=["search"])
 app.include_router(memories.router, prefix=settings.API_V1_STR)
+app.include_router(timeline.router, prefix=settings.API_V1_STR)

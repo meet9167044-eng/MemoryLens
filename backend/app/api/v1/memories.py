@@ -10,12 +10,131 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from app.db.session import get_db
+from app.models.memory import Memory
+from app.models.relationship import Relationship
 from app.schemas.relationships import RelatedMemoriesResponse, RelatedMemoryResponse
+from app.schemas.memories import (
+    MemoryResponse, SourceSchema, ScreenshotSchema, ContentSchema, 
+    EntitySchema, RelatedMemorySchema, MetadataSchema
+)
 from app.processing.relationships import compute_relationships_for_memory, get_related_memories
 
 router = APIRouter(prefix="/memories", tags=["memories"])
+
+
+def map_memory_to_response(db: Session, memory: Memory) -> MemoryResponse:
+    """Map a SQLAlchemy Memory object exactly to the frontend MemoryResponse JSON."""
+    
+    # 1. Source (Mocked for now since we don't have OS metadata yet)
+    # Default to desktop/browser based on a simple heuristic or fixed
+    app_name = "Unknown App"
+    app_type = "other"
+    if memory.content_type == "screenshot":
+        app_type = "desktop"
+        
+    # 2. Screenshot
+    screenshot_id = str(memory.screenshot_id) if memory.screenshot_id else ""
+    # Assume we will expose a route to serve the image raw bytes
+    image_url = f"/api/v1/screenshots/{screenshot_id}/image"
+    
+    # 3. Content
+    content = ContentSchema(
+        ocrText=memory.raw_ocr_text or "",
+        title=memory.title or "Untitled Memory",
+        summary=memory.summary or ""
+    )
+    
+    # 4. Entities
+    entities = []
+    for ent in memory.entities:
+        # map backend EntityType to frontend string choices
+        frontend_type = "other"
+        if ent.entity_type.value in ['technology', 'framework', 'company', 'person', 'project', 'topic', 'tool']:
+            frontend_type = ent.entity_type.value
+        elif ent.entity_type.value == 'organization':
+            frontend_type = 'company'
+            
+        entities.append(EntitySchema(
+            id=str(ent.id),
+            name=ent.name,
+            type=frontend_type
+        ))
+        
+    # 5. Tags
+    tags = memory.tags or []
+    
+    # 6. Related Memories (Query them)
+    # Find all relationships where this memory is source or target
+    rels = db.query(Relationship).filter(
+        or_(Relationship.source_id == memory.id, Relationship.target_id == memory.id)
+    ).all()
+    
+    related = []
+    for r in rels:
+        other_id = r.target_id if r.source_id == memory.id else r.source_id
+        
+        # map relationship type
+        rel_type = "semantic_similarity"
+        if r.rel_type.value == "shared_entity":
+            rel_type = "entity_overlap"
+        elif r.rel_type.value == "shared_tag":
+            rel_type = "same_topic"
+            
+        related.append(RelatedMemorySchema(
+            memoryId=str(other_id),
+            relationship=rel_type,
+            similarityScore=r.score
+        ))
+        
+    # 7. Metadata
+    metadata = MetadataSchema(
+        language="english", # Placeholder
+        contentType=memory.content_type or "unknown",
+        confidence=memory.confidence_score or 0.95
+    )
+
+    return MemoryResponse(
+        id=str(memory.id),
+        timestamp=memory.created_at.isoformat() if memory.created_at else "",
+        source=SourceSchema(app=app_name, type=app_type),
+        screenshot=ScreenshotSchema(id=screenshot_id, imageUrl=image_url),
+        content=content,
+        entities=entities,
+        tags=tags,
+        relatedMemories=related,
+        metadata=metadata
+    )
+
+
+@router.get("", response_model=list[MemoryResponse])
+def list_memories(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """
+    List all memories.
+    """
+    memories = db.query(Memory).order_by(Memory.created_at.desc()).offset(skip).limit(limit).all()
+    return [map_memory_to_response(db, m) for m in memories]
+
+
+@router.get("/{memory_id}", response_model=MemoryResponse)
+def get_memory(
+    memory_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """
+    Get a single memory by ID.
+    """
+    memory = db.query(Memory).filter(Memory.id == memory_id).first()
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory not found")
+        
+    return map_memory_to_response(db, memory)
 
 
 @router.get("/{memory_id}/related", response_model=RelatedMemoriesResponse)
