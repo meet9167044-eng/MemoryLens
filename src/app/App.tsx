@@ -2,6 +2,11 @@ import { Routes, Route } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Overview } from '@/pages/Overview';
 import { Memories } from '@/pages/Memories';
+import { MemoryDetail } from '@/pages/MemoryDetail';
+import { Search } from '@/pages/Search';
+import { Timeline } from '@/pages/Timeline';
+import { Connections } from '@/pages/Connections';
+import { Insights } from '@/pages/Insights';
 
 // Placeholder components for other routes
 const Placeholder = ({ title }: { title: string }) => (
@@ -19,11 +24,11 @@ export function App() {
       <Routes>
         <Route path="/" element={<Overview />} />
         <Route path="/memories" element={<Memories />} />
-        <Route path="/memories/:id" element={<Placeholder title="Memory Detail" />} />
-        <Route path="/search" element={<Placeholder title="Search" />} />
-        <Route path="/timeline" element={<Placeholder title="Timeline" />} />
-        <Route path="/connections" element={<Placeholder title="Connections" />} />
-        <Route path="/insights" element={<Placeholder title="Insights" />} />
+        <Route path="/memories/:id" element={<MemoryDetail />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="/timeline" element={<Timeline />} />
+        <Route path="/connections" element={<Connections />} />
+        <Route path="/insights" element={<Insights />} />
       </Routes>
     </Layout>
   );
