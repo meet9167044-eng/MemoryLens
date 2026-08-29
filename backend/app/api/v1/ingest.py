@@ -1,13 +1,16 @@
 """
-POST /api/v1/ingest  — Screenshot Ingestion Endpoint (Phase 3)
+POST /api/v1/ingest  — Screenshot Ingestion Endpoint (Phase 3 / Phase 10)
 
 Accepts a multipart/form-data image upload, validates it,
 saves it to disk via StorageProvider, and creates a Screenshot
 record in the database with status=PENDING.
 
-Does NOT run OCR or any AI processing (that is Phase 5+).
+Phase 10 addition: after the DB commit, fires run_pipeline() in a
+daemon thread so the API returns 201 immediately while all processing
+(OCR, extraction, embeddings, relationships) runs in the background.
 """
 import io
+import threading
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from PIL import Image
@@ -15,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.session import get_db
+from app.jobs.pipeline import run_pipeline
 from app.models.screenshot import Screenshot, ScreenshotStatus
 from app.schemas.ingest import ErrorResponse, ScreenshotUploadResponse, ScreenshotStatusResponse
 from app.services.storage import storage
@@ -23,6 +27,17 @@ router = APIRouter(prefix="/api/v1", tags=["ingestion"])
 
 MAX_FILE_SIZE = settings.MAX_FILE_SIZE_MB * 1024 * 1024  # bytes
 ALLOWED_MIME = set(settings.ALLOWED_MIME_TYPES)
+
+import logging as _logging
+_log = _logging.getLogger(__name__)
+
+
+def _run_pipeline_safe(screenshot_id) -> None:
+    """Thread target: run the full pipeline; swallow and log any uncaught error."""
+    try:
+        run_pipeline(screenshot_id=screenshot_id)
+    except Exception as exc:  # pragma: no cover
+        _log.error("Unhandled pipeline error for %s: %s", screenshot_id, exc, exc_info=True)
 
 
 def _validate_image(data: bytes, content_type: str, filename: str) -> None:
@@ -117,6 +132,15 @@ async def ingest_screenshot(
     db.commit()
     db.refresh(screenshot)
 
+    # ── 6. Fire background pipeline (Phase 10) ───────────────────────────
+    _screenshot_id = screenshot.id  # capture before thread starts
+    threading.Thread(
+        target=_run_pipeline_safe,
+        args=(_screenshot_id,),
+        daemon=True,
+        name=f"pipeline-{_screenshot_id}",
+    ).start()
+
     return ScreenshotUploadResponse(
         screenshot_id=screenshot.id,
         status=screenshot.status.value,
@@ -124,7 +148,7 @@ async def ingest_screenshot(
         original_filename=file.filename or "upload.png",
         file_size_bytes=storage_meta["file_size_bytes"],
         file_hash=storage_meta["file_hash"],
-        message="Screenshot ingested successfully. Processing is queued.",
+        message="Screenshot ingested successfully. Processing pipeline started.",
     )
 
 
