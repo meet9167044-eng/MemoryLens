@@ -15,15 +15,9 @@ type LayoutProps = {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+    <div className="layout-container">
       {/* Sidebar */}
-      <aside style={{
-        width: '240px',
-        borderRight: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-surface)',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+      <aside className="sidebar">
         <div style={{ padding: '1.5rem', fontWeight: 600, fontSize: '1.125rem' }}>
           MemoryLens
         </div>
