@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-004"
     EMBEDDING_DIMENSIONS: int = 768
 
+    # Trained Model (PaliGemma 2 LoRA) — Colab proxy URL or empty for local GPU mode
+    PALIGEMMA_BACKEND_URL: str = ""        # e.g. https://recall-boat-matcher.ngrok-free.dev
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

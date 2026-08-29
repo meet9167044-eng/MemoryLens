@@ -7,6 +7,7 @@ import { Search } from '@/pages/Search';
 import { Timeline } from '@/pages/Timeline';
 import { Connections } from '@/pages/Connections';
 import { Insights } from '@/pages/Insights';
+import { Chat } from '@/pages/Chat';
 
 // Placeholder components for other routes
 const Placeholder = ({ title }: { title: string }) => (
@@ -29,6 +30,7 @@ export function App() {
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/connections" element={<Connections />} />
         <Route path="/insights" element={<Insights />} />
+        <Route path="/chat" element={<Chat />} />
       </Routes>
     </Layout>
   );

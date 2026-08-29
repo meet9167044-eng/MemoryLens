@@ -1,15 +1,17 @@
 """
 POST /api/v1/chat — Phase E: RAG Conversational Memory Assistant
+POST /api/v1/chat/visual — Trained Model: PaliGemma 2 Visual Q&A
 
-Flow:
+/chat flow:
     1. Embed the user's question (Gemini text-embedding-004).
     2. Find top-5 most relevant Memory rows (cosine similarity on stored embeddings).
     3. Build a Gemini LLM prompt with memory context injected.
     4. Return the grounded answer with memory citations.
 
-Falls back to a helpful "no data" message when:
-    - No memories have been uploaded yet.
-    - No Gemini API key is configured.
+/chat/visual flow:
+    1. Accept an uploaded image + text question.
+    2. Forward to the fine-tuned PaliGemma 2 LoRA model (via Colab ngrok proxy or local GPU).
+    3. Return the AI's visual recall answer.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ import math
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -51,6 +53,14 @@ class ChatResponse(BaseModel):
     citations: List[Citation]
     memories_searched: int
     model_used: str
+
+
+class VisualChatResponse(BaseModel):
+    """Response schema for the PaliGemma 2 visual Q&A endpoint."""
+    question: str
+    answer: str
+    model: str
+    backend: str  # "colab_proxy" | "local_gpu" | "unavailable"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -278,3 +288,57 @@ def chat(
         memories_searched=total_memories,
         model_used=model_used,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Visual Q&A Endpoint — PaliGemma 2 Fine-Tuned Model
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/chat/visual",
+    response_model=VisualChatResponse,
+    summary="Ask a question about an image using the fine-tuned PaliGemma 2 model",
+    description=(
+        "Upload any image and ask a natural-language question. "
+        "The fine-tuned PaliGemma 2 LoRA model (trained on your hackathon memories) "
+        "will recall the answer. Forwards to a running Colab ngrok session "
+        "when PALIGEMMA_BACKEND_URL is set in .env, otherwise falls back to local GPU."
+    ),
+    tags=["chat", "visual-ai"],
+)
+async def chat_visual(
+    file: UploadFile = File(..., description="Image file (JPG, PNG, WEBP)"),
+    question: str = Form(..., min_length=1, max_length=500, description="Question about the image"),
+) -> VisualChatResponse:
+    """
+    Visual memory recall using PaliGemma 2 (fine-tuned LoRA adapter).
+
+    Example questions:
+    - "What quote is written on the tote bag?"
+    - "Where are my round spectacles?"
+    - "Where is my water bottle and what does it say?"
+    - "What snacks do we have on the table?"
+    """
+    # Validate mime type
+    allowed = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/bmp"}
+    content_type = file.content_type or "image/jpeg"
+    if content_type not in allowed:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported image type '{content_type}'. Allowed: {', '.join(sorted(allowed))}",
+        )
+
+    image_bytes = await file.read()
+    if len(image_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    from app.services.paligemma_service import ask_visual
+
+    result = await ask_visual(
+        image_bytes=image_bytes,
+        filename=file.filename or "image.jpg",
+        question=question,
+        content_type=content_type,
+    )
+
+    return VisualChatResponse(**result)

@@ -5,7 +5,8 @@ import {
   Search, 
   Clock, 
   Network, 
-  Lightbulb 
+  Lightbulb,
+  MessageSquareCode
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -29,6 +30,7 @@ export function Layout({ children }: LayoutProps) {
           <NavItem icon={<Clock size={18} />} label="Timeline" to="/timeline" />
           <NavItem icon={<Network size={18} />} label="Connections" to="/connections" />
           <NavItem icon={<Lightbulb size={18} />} label="Insights" to="/insights" />
+          <NavItem icon={<MessageSquareCode size={18} />} label="Ask AI" to="/chat" highlight />
         </nav>
       </aside>
 
@@ -40,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
   );
 }
 
-function NavItem({ icon, label, to }: { icon: ReactNode, label: string, to: string }) {
+function NavItem({ icon, label, to, highlight }: { icon: ReactNode, label: string, to: string, highlight?: boolean }) {
   return (
     <NavLink 
       to={to}
@@ -51,10 +53,12 @@ function NavItem({ icon, label, to }: { icon: ReactNode, label: string, to: stri
         padding: '0.5rem 0.75rem',
         borderRadius: '6px',
         cursor: 'pointer',
-        color: isActive ? 'var(--color-accent)' : 'var(--color-secondary-text)',
-        backgroundColor: isActive ? 'rgba(109, 92, 231, 0.1)' : 'transparent',
-        fontWeight: 500,
+        color: isActive ? 'var(--color-accent)' : highlight ? '#818cf8' : 'var(--color-secondary-text)',
+        backgroundColor: isActive ? 'rgba(109, 92, 231, 0.1)' : highlight ? 'rgba(99,102,241,0.08)' : 'transparent',
+        border: highlight && !isActive ? '1px solid rgba(99,102,241,0.25)' : '1px solid transparent',
+        fontWeight: highlight ? 600 : 500,
         fontSize: '0.875rem',
+        marginTop: highlight ? '0.5rem' : 0,
       })}
     >
       {icon}
