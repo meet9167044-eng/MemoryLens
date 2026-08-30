@@ -232,6 +232,10 @@ def get_related_memories(
             "score":       row.score,
             "rel_type":    row.rel_type,
             "explanation": row.explanation,
+            # Enriched — lets the frontend show cards without a second fetch
+            "summary":     other_memory.summary if other_memory else None,
+            "timestamp":   other_memory.created_at.isoformat() if other_memory and other_memory.created_at else None,
         })
 
     return results
+

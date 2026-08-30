@@ -1,64 +1,69 @@
-import type { ReactNode } from 'react';
+import React from "react"
+import { Link, useLocation } from "react-router-dom"
 import { 
   LayoutDashboard, 
   Layers, 
   Search, 
   Clock, 
   Network, 
-  Lightbulb 
-} from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+  BarChart3,
+  MessageSquare,
+  Eye
+} from "lucide-react"
 
-type LayoutProps = {
-  children: ReactNode;
-};
+const navigation = [
+  { name: "Overview", href: "/", icon: LayoutDashboard },
+  { name: "Memories", href: "/memories", icon: Layers },
+  { name: "Search", href: "/search", icon: Search },
+  { name: "Timeline", href: "/timeline", icon: Clock },
+  { name: "Connections", href: "/connections", icon: Network },
+  { name: "Insights", href: "/insights", icon: BarChart3 },
+  { name: "AI Chat", href: "/chat", icon: MessageSquare },
+]
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+
   return (
-    <div className="layout-container">
+    <div className="app-shell">
       {/* Sidebar */}
       <aside className="sidebar">
-        <div style={{ padding: '1.5rem', fontWeight: 600, fontSize: '1.125rem' }}>
-          MemoryLens
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">
+            <Eye size={20} color="white" />
+          </div>
+          <span className="sidebar-logo-text">MemoryLens</span>
         </div>
         
-        <nav style={{ padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <NavItem icon={<LayoutDashboard size={18} />} label="Overview" to="/" />
-          <NavItem icon={<Layers size={18} />} label="Memories" to="/memories" />
-          <NavItem icon={<Search size={18} />} label="Search" to="/search" />
-          <NavItem icon={<Clock size={18} />} label="Timeline" to="/timeline" />
-          <NavItem icon={<Network size={18} />} label="Connections" to="/connections" />
-          <NavItem icon={<Lightbulb size={18} />} label="Insights" to="/insights" />
+        <nav className="sidebar-nav">
+          {navigation.map((item) => {
+            const isActive = location.pathname === item.href || 
+                             (item.href !== "/" && location.pathname.startsWith(item.href))
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={`sidebar-link${isActive ? " active" : ""}`}
+              >
+                <item.icon size={18} />
+                {item.name}
+              </Link>
+            )
+          })}
         </nav>
+
+        <div className="sidebar-footer">
+          <div className="status-dot"></div>
+          <span>v2.1 • ACTIVE</span>
+        </div>
       </aside>
 
-      {/* Main Content */}
-      <main style={{ flex: 1, backgroundColor: 'var(--color-background)', overflowY: 'auto' }}>
-        {children}
+      {/* Main Canvas */}
+      <main className="main-content">
+        <div className="page-container fade-in">
+          {children}
+        </div>
       </main>
     </div>
-  );
-}
-
-function NavItem({ icon, label, to }: { icon: ReactNode, label: string, to: string }) {
-  return (
-    <NavLink 
-      to={to}
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.5rem 0.75rem',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        color: isActive ? 'var(--color-accent)' : 'var(--color-secondary-text)',
-        backgroundColor: isActive ? 'rgba(109, 92, 231, 0.1)' : 'transparent',
-        fontWeight: 500,
-        fontSize: '0.875rem',
-      })}
-    >
-      {icon}
-      <span>{label}</span>
-    </NavLink>
-  );
+  )
 }

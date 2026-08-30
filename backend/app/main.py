@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.v1 import health, search, memories, timeline
+from app.api.v1 import health, search, memories, timeline, insights
 from app.api.v1.ingest import router as ingest_router
 from app.api.v1.connections import router as connections_router
 from app.api.v1.chat import router as chat_router
@@ -55,3 +55,4 @@ app.include_router(memories.router, prefix=settings.API_V1_STR)
 app.include_router(timeline.router, prefix=settings.API_V1_STR)
 app.include_router(connections_router, prefix=settings.API_V1_STR, tags=["connections"])
 app.include_router(chat_router, prefix=settings.API_V1_STR, tags=["chat"])
+app.include_router(insights.router, prefix=settings.API_V1_STR, tags=["insights"])

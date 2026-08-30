@@ -1,0 +1,10 @@
+import psycopg2
+conn = psycopg2.connect('postgresql://postgres:Meet%4012@localhost:5432/memorylens_db')
+cur = conn.cursor()
+cur.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+tables = cur.fetchall()
+print('Tables:', [t[0] for t in tables])
+cur.execute("SELECT typname FROM pg_type WHERE typcategory='E'")
+enums = cur.fetchall()
+print('Enums:', [e[0] for e in enums])
+conn.close()

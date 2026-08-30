@@ -1,127 +1,193 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { memoryService } from '../services/memoryService';
-import { Memory } from '../types/memory';
-import { Link } from 'react-router-dom';
-import { Search as SearchIcon, AppWindow } from 'lucide-react';
+import React, { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { format } from "date-fns"
+import { api, SearchResult } from "@/services/api"
+import { Search as SearchIcon, Clock, Layers, Loader, SlidersHorizontal, X } from "lucide-react"
 
-export const Search: React.FC = () => {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Memory[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+const SOURCE_TYPES = ["desktop", "browser", "terminal", "document", "other"]
 
-  // Debounce the search call
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (query.trim() === '') {
-        setResults([]);
-        setHasSearched(false);
-        setLoading(false);
-        return;
-      }
-      
-      setLoading(true);
-      setHasSearched(true);
-      const searchResults = await memoryService.searchMemories(query);
-      setResults(searchResults);
-      setLoading(false);
-    }, 300);
+export default function Search() {
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [sourceType, setSourceType] = useState("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+  const navigate = useNavigate()
 
-    return () => clearTimeout(timer);
-  }, [query]);
+  const handleSearch = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!query.trim()) return
+    setLoading(true)
+    setHasSearched(true)
+
+    const res = await api.searchMemories({
+      q: query,
+      limit: 20,
+      source_type: sourceType || undefined,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+    })
+
+    setResults(res?.results || [])
+    setTotal(res?.total || 0)
+    setLoading(false)
+  }
+
+  const clearFilters = () => { setSourceType(""); setDateFrom(""); setDateTo("") }
+  const hasFilters = !!(sourceType || dateFrom || dateTo)
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#333' }}>
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#111', marginBottom: '16px' }}>Search Memories</h1>
-        
-        <div style={{ position: 'relative', maxWidth: '600px', margin: '0 auto' }}>
-          <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', display: 'flex' }}>
-            <SearchIcon size={20} />
+    <div>
+      {/* Header */}
+      <div style={{ textAlign: 'center', padding: '40px 0 36px' }}>
+        <h1 className="page-title letterpress" style={{ marginBottom: '12px' }}>Hybrid Search</h1>
+        <p className="page-subtitle" style={{ maxWidth: '500px', margin: '0 auto 36px' }}>
+          Search your digital memory by keyword, semantic meaning, or entity name.
+        </p>
+
+        <form onSubmit={handleSearch} style={{ maxWidth: '680px', margin: '0 auto' }}>
+          <div className="search-bar-wrap">
+            <SearchIcon className="search-icon" size={22} />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="e.g. 'GPU debugging in python' or 'CUDA environment setup'"
+              className="search-input"
+            />
+            <button
+              type="button"
+              title="Filters"
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ padding: '8px 12px', marginRight: '4px', background: hasFilters ? '#EFF6FF' : 'transparent', border: hasFilters ? '1px solid #DBEAFE' : 'none', borderRadius: '8px', cursor: 'pointer', color: hasFilters ? 'var(--accent)' : '#9CA3AF', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', fontWeight: 500 }}
+            >
+              <SlidersHorizontal size={16} />
+              {hasFilters ? 'Filtered' : 'Filter'}
+            </button>
+            <button type="submit" disabled={loading || !query.trim()} className="search-submit">
+              {loading ? <Loader size={17} style={{ animation: 'spin 1s linear infinite' }} /> : 'Search'}
+            </button>
           </div>
-          <input 
-            type="text" 
-            placeholder="Search by title, OCR text, tags, or entities..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ 
-              width: '100%', 
-              padding: '16px 16px 16px 48px', 
-              fontSize: '16px', 
-              borderRadius: '24px', 
-              border: '1px solid #d1d5db',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
-          />
-        </div>
+
+          {/* Filters Panel */}
+          {showFilters && (
+            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px 20px', marginTop: '10px', textAlign: 'left', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary-text)' }}>Filters</span>
+                {hasFilters && (
+                  <button onClick={clearFilters} style={{ fontSize: '0.75rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <X size={12} /> Clear all
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--secondary-text)', display: 'block', marginBottom: '6px' }}>SOURCE TYPE</label>
+                  <select
+                    value={sourceType}
+                    onChange={e => setSourceType(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem', background: '#fff', cursor: 'pointer' }}
+                  >
+                    <option value="">All types</option>
+                    {SOURCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--secondary-text)', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={e => setDateFrom(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem', background: '#fff' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--secondary-text)', display: 'block', marginBottom: '6px' }}>TO DATE</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={e => setDateTo(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem', background: '#fff' }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </form>
       </div>
 
-      <div style={{ marginTop: '40px' }}>
-        {loading && <div style={{ textAlign: 'center', color: '#6b7280' }}>Searching...</div>}
-        
-        {!loading && hasSearched && results.length === 0 && (
-          <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px', backgroundColor: '#f9fafb', borderRadius: '12px' }}>
-            <p style={{ fontSize: '18px', fontWeight: '500' }}>No memories found matching "{query}"</p>
-            <p style={{ marginTop: '8px' }}>Try using different keywords or tags.</p>
-          </div>
-        )}
-
-        {!loading && results.length > 0 && (
-          <div>
-            <h2 style={{ fontSize: '18px', color: '#6b7280', marginBottom: '24px', fontWeight: '500' }}>
-              Found {results.length} result{results.length !== 1 ? 's' : ''}
+      {/* Results */}
+      {hasSearched && (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.3rem', fontWeight: 600, color: 'var(--primary-text)' }}>
+              {loading ? "Searching…" : `${total} result${total !== 1 ? 's' : ''} for "${query}"`}
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {results.map(memory => (
-                <Link to={`/memories/${memory.id}`} key={memory.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{ 
-                    border: '1px solid #eee', 
-                    borderRadius: '12px', 
-                    padding: '20px', 
-                    backgroundColor: '#fff', 
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)', 
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.borderColor = '#d1d5db';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateX(0)';
-                    e.currentTarget.style.borderColor = '#eee';
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#111', margin: 0 }}>{memory.content.title}</h3>
-                      <span style={{ fontSize: '13px', color: '#6b7280' }}>{new Date(memory.timestamp).toLocaleDateString()}</span>
-                    </div>
-                    
-                    <p style={{ color: '#4b5563', margin: 0, fontSize: '14px', lineHeight: '1.5' }}>{memory.content.summary}</p>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6b7280', fontSize: '13px', fontWeight: '500' }}>
-                        <AppWindow size={14} /> {memory.source.app}
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        {memory.tags.slice(0, 3).map(tag => (
-                          <span key={tag} style={{ padding: '2px 8px', backgroundColor: '#f3f4f6', color: '#374151', borderRadius: '12px', fontSize: '11px', fontWeight: '500' }}>
-                            #{tag}
-                          </span>
-                        ))}
-                        {memory.tags.length > 3 && <span style={{ fontSize: '11px', color: '#9ca3af' }}>+{memory.tags.length - 3} more</span>}
-                      </div>
-                    </div>
+          </div>
+
+          {loading ? (
+            <div className="memory-card-list">
+              {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: '110px' }}></div>)}
+            </div>
+          ) : results.length > 0 ? (
+            <div className="memory-card-list">
+              {results.map(result => (
+                <div key={result.id} className="memory-card-row" onClick={() => navigate(`/memories/${result.id}`)}>
+                  {/* Thumbnail — SearchResult has image_url (flat path) */}
+                  <div className="memory-card-thumb" style={{ minHeight: '100px' }}>
+                    {result.image_url ? (
+                      <img
+                        src={result.image_url}
+                        alt=""
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <Layers size={28} color="#D1D5DB" />
+                    )}
                   </div>
-                </Link>
+
+                  <div className="memory-card-body">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      {/* SearchResult has flat title field */}
+                      <div className="memory-card-title" style={{ flex: 1 }}>{result.title || 'Untitled'}</div>
+                      <div style={{ display: 'flex', gap: '6px', marginLeft: '12px', flexShrink: 0 }}>
+                        <span className="badge badge-accent">{result.source?.app || result.source?.type}</span>
+                        {result.relevance_score > 0 && (
+                          <span className="badge badge-outline" style={{ fontSize: '0.65rem' }}>
+                            {Math.round(result.relevance_score * 100)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="memory-card-meta" style={{ marginBottom: '4px' }}>
+                      <Clock size={12} />
+                      <span>{format(new Date(result.timestamp || new Date()), "MMM d, yyyy h:mm a")}</span>
+                    </div>
+                    {/* SearchResult has flat summary field */}
+                    <div className="memory-card-summary">{result.summary}</div>
+                    {/* OCR snippet when available */}
+                    {result.ocr_snippet && (
+                      <div style={{ marginTop: '6px', fontSize: '0.75rem', color: 'var(--secondary-text)', fontFamily: 'monospace', background: '#F9FAFB', padding: '4px 8px', borderRadius: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {result.ocr_snippet}
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon"><SearchIcon size={28} /></div>
+              <div className="empty-title">No results found</div>
+              <p>Try different keywords, or check the backend is running.</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
-  );
-};
+  )
+}
