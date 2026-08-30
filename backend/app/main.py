@@ -36,14 +36,25 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS — allow the Vite frontend to call the API during development
 # ---------------------------------------------------------------------------
+cors_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 if settings.CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    for o in settings.CORS_ORIGINS:
+        s = str(o).rstrip("/")
+        if s not in cors_origins:
+            cors_origins.append(s)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------------------------------------------------------------------------
 # Routers

@@ -20,6 +20,7 @@ Mocking note for tests:
 
 import sys
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -42,6 +43,10 @@ def _load_paddle():
         return
     _LOAD_ATTEMPTED = True
     try:
+        # Paddle's oneDNN path is incompatible with the bundled Windows models.
+        os.environ.setdefault("FLAGS_use_mkldnn", "0")
+        import paddle
+        paddle.set_flags({"FLAGS_use_mkldnn": False})
         from paddleocr import PaddleOCR as _PaddleOCR
         PaddleOCR = _PaddleOCR
     except (ImportError, Exception):
@@ -121,6 +126,13 @@ def run_ocr(image_path: str, screenshot_id: Optional[str] = None) -> OCRResult:
         )
 
     except Exception as e:
+        if "ConvertPirAttribute2RuntimeAttribute" in str(e):
+            print("[OCR] Paddle oneDNN is incompatible with this runtime; continuing without OCR.")
+            return OCRResult(
+                screenshot_id=screenshot_id,
+                full_text="",
+                blocks=[],
+            )
         return OCRResult(
             screenshot_id=screenshot_id,
             full_text="",

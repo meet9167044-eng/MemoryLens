@@ -88,13 +88,14 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
       attempts++
 
       const allDone = await Promise.all(
-        items.map(async ({ id, name }) => {
+        items.map(async ({ id }) => {
           const status = await api.getIngestStatus(id)
-          const label = status?.status || "Processing…"
+          const statusValue = status?.status?.toLowerCase() || "processing"
+          const label = statusValue === "completed" ? "✓ Done" : statusValue
           setProgress(prev =>
-            prev.map(p => p.id === id ? { ...p, status: label === "COMPLETED" ? "✓ Done" : label } : p)
+            prev.map(p => p.id === id ? { ...p, status: label } : p)
           )
-          return label === "COMPLETED" || label === "FAILED"
+          return statusValue === "completed" || statusValue === "failed"
         })
       )
 

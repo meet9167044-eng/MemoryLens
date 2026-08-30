@@ -59,6 +59,10 @@ class MemoryService {
       }, 200);
     });
   }
+
+  async getInsights(): Promise<any[]> {
+    return [];
+  }
 }
 
 export const memoryService = new MemoryService();

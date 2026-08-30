@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { api, InsightStats } from "@/services/api"
 import { BarChart3, TrendingUp, Zap, FileText, Share2 } from "lucide-react"
 
