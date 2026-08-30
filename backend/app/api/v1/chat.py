@@ -205,6 +205,29 @@ def _call_gemini_chat(question: str, context: str) -> tuple[str, str]:
         return "An error occurred while processing your question.", "none"
 
 
+def _call_groq_chat(question: str, context: str) -> tuple[str, str]:
+    """Call Groq over the OpenAI-compatible endpoint and return (answer, model_used)."""
+    try:
+        from app.config import settings
+        from openai import OpenAI
+
+        client = OpenAI(api_key=settings.GROQ_API_KEY, base_url=settings.GROQ_BASE_URL)
+        prompt = _RAG_PROMPT_TEMPLATE.format(context=context, question=question)
+
+        resp = client.chat.completions.create(
+            model=settings.GROQ_CHAT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=1024,
+            timeout=30,
+        )
+        answer = resp.choices[0].message.content or "I couldn't generate a response."
+        return answer, settings.GROQ_CHAT_MODEL
+    except Exception as exc:
+        logger.error("Groq chat failed: %s", exc)
+        return "An error occurred while processing your question.", "none"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Endpoint
 # ─────────────────────────────────────────────────────────────────────────────
@@ -239,7 +262,7 @@ def chat(
         )
 
     # No API key — keyword match only, no LLM answer
-    if not settings.GEMINI_API_KEY:
+    if not settings.GEMINI_API_KEY and not settings.GROQ_API_KEY:
         top = _retrieve_top_memories(db, None, body.message, k=5)
         if not top:
             answer = "I couldn't find any memories related to your question."
@@ -247,7 +270,7 @@ def chat(
             titles = ", ".join(f'"{m.title or "Untitled"}"' for m in top)
             answer = (
                 f"I found {len(top)} potentially related memories: {titles}. "
-                "Add a GEMINI_API_KEY to your .env for AI-powered answers."
+                "Add a GEMINI_API_KEY or GROQ_API_KEY to your .env for AI-powered answers."
             )
         return ChatResponse(
             answer=answer,
@@ -269,7 +292,14 @@ def chat(
         )
 
     context = _build_context(top_memories)
-    answer, model_used = _call_gemini_chat(body.message, context)
+    if settings.LLM_PROVIDER.lower() == "groq" and settings.GROQ_API_KEY:
+        answer, model_used = _call_groq_chat(body.message, context)
+    elif settings.GEMINI_API_KEY:
+        answer, model_used = _call_gemini_chat(body.message, context)
+    elif settings.GROQ_API_KEY:
+        answer, model_used = _call_groq_chat(body.message, context)
+    else:
+        answer, model_used = "I encountered an error generating a response. Please try again.", "none"
     citations = _extract_citations(top_memories)
 
     return ChatResponse(

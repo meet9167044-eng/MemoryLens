@@ -26,12 +26,16 @@ class Settings(BaseSettings):
     DATASET_STORAGE_PATH: str = "./data/dataset"
 
     # Phase B: LLM / AI Configuration
-    LLM_PROVIDER: str = "gemini"  # "gemini" | "openai" | "stub"
+    LLM_PROVIDER: str = "groq"  # "groq" | "gemini" | "openai" | "stub"
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+    GROQ_CHAT_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_VISION_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
 
     # Phase C: Embeddings
-    EMBEDDING_PROVIDER: str = "gemini"  # "gemini" | "openai" | "local"
+    EMBEDDING_PROVIDER: str = "local"  # "gemini" | "openai" | "local"
     EMBEDDING_MODEL: str = "text-embedding-004"
     EMBEDDING_DIMENSIONS: int = 768
 

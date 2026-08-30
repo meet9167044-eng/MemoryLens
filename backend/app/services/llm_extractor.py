@@ -178,6 +178,48 @@ def _extract_gemini(image_bytes: bytes, filename: str) -> ExtractionResult:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Groq provider
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _extract_groq(image_bytes: bytes, filename: str) -> ExtractionResult:
+    """Call Groq via the OpenAI-compatible API and return structured output."""
+    try:
+        from openai import OpenAI
+        import base64
+    except ImportError:
+        logger.warning("openai package not installed — using stub.")
+        return _stub_result(filename)
+
+    try:
+        import base64
+        b64 = base64.b64encode(image_bytes).decode()
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "png"
+        mime = f"image/{ext}" if ext in ("png", "jpeg", "jpg", "webp") else "image/png"
+
+        client = OpenAI(api_key=settings.GROQ_API_KEY, base_url=settings.GROQ_BASE_URL)
+        resp = client.chat.completions.create(
+            model=settings.GROQ_VISION_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": _SYSTEM_PROMPT},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                    ],
+                }
+            ],
+            max_tokens=2048,
+            temperature=0.1,
+            timeout=30,
+        )
+        raw = resp.choices[0].message.content or ""
+        return _parse_llm_json(raw, filename)
+    except Exception as exc:
+        logger.error("Groq extraction failed for %s: %s", filename, exc)
+        return _stub_result(filename)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # OpenAI provider
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -240,20 +282,27 @@ class LLMExtractor:
         """
         provider = settings.LLM_PROVIDER.lower()
 
-        # Try Gemini
+        # Explicit provider precedence
+        if provider == "groq" and settings.GROQ_API_KEY:
+            logger.info("LLM extraction via Groq for %s", filename)
+            return _extract_groq(image_bytes, filename)
+
         if provider == "gemini" and settings.GEMINI_API_KEY:
             logger.info("LLM extraction via Gemini for %s", filename)
             return _extract_gemini(image_bytes, filename)
 
-        # Try OpenAI
         if provider == "openai" and settings.OPENAI_API_KEY:
             logger.info("LLM extraction via OpenAI for %s", filename)
             return _extract_openai(image_bytes, filename)
 
-        # Auto-detect: try Gemini if key available regardless of provider setting
+        # Auto-detect fallback order
         if settings.GEMINI_API_KEY:
             logger.info("Auto: LLM extraction via Gemini for %s", filename)
             return _extract_gemini(image_bytes, filename)
+
+        if settings.GROQ_API_KEY:
+            logger.info("Auto: LLM extraction via Groq for %s", filename)
+            return _extract_groq(image_bytes, filename)
 
         if settings.OPENAI_API_KEY:
             logger.info("Auto: LLM extraction via OpenAI for %s", filename)
