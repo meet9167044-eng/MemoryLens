@@ -1,31 +1,42 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 import os
-from typing import List
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+ENV_FILE = BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
     # Phase 2: Database
-    DATABASE_URL: str
+    DATABASE_URL: str = "sqlite:///./memorylens.db"
+
     # Phase 3: Storage
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE_MB: int = 50
-    ALLOWED_MIME_TYPES: list = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/bmp"]
+    ALLOWED_MIME_TYPES: list[str] = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/bmp",
+    ]
 
     # Phase A: Dataset Storage
     DATASET_STORAGE_PATH: str = "./data/dataset"
 
     # Phase B: LLM / AI Configuration
-    LLM_PROVIDER: str = "gemini"           # "gemini" | "openai" | "stub"
+    LLM_PROVIDER: str = "gemini"  # "gemini" | "openai" | "stub"
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
     # Phase C: Embeddings
-    EMBEDDING_PROVIDER: str = "gemini"     # "gemini" | "openai" | "local"
+    EMBEDDING_PROVIDER: str = "gemini"  # "gemini" | "openai" | "local"
     EMBEDDING_MODEL: str = "text-embedding-004"
     EMBEDDING_DIMENSIONS: int = 768
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -35,8 +46,11 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Ensure upload directory exists
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = settings.UPLOAD_DIR if os.path.isabs(settings.UPLOAD_DIR) else BACKEND_DIR / settings.UPLOAD_DIR
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 # Ensure dataset directories exist
-os.makedirs(f"{settings.DATASET_STORAGE_PATH}/raw", exist_ok=True)
-os.makedirs(f"{settings.DATASET_STORAGE_PATH}/thumbnails", exist_ok=True)
-os.makedirs(f"{settings.DATASET_STORAGE_PATH}/metadata_cache", exist_ok=True)
+DATASET_DIR = settings.DATASET_STORAGE_PATH if os.path.isabs(settings.DATASET_STORAGE_PATH) else BACKEND_DIR / settings.DATASET_STORAGE_PATH
+os.makedirs(DATASET_DIR / "raw", exist_ok=True)
+os.makedirs(DATASET_DIR / "thumbnails", exist_ok=True)
+os.makedirs(DATASET_DIR / "metadata_cache", exist_ok=True)

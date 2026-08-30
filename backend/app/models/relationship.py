@@ -31,7 +31,11 @@ class Relationship(Base):
                         nullable=False, index=True)
     target_id  = Column(UUID(as_uuid=True), ForeignKey("memories.id", ondelete="CASCADE"),
                         nullable=False, index=True)
-    rel_type   = Column(Enum(RelationshipType, name="relationship_type"),
+    rel_type   = Column(Enum(
+                        RelationshipType,
+                        name="relationship_type",
+                        values_callable=lambda enum_type: [item.value for item in enum_type],
+                    ),
                         nullable=False, default=RelationshipType.SHARED_ENTITY)
     score      = Column(Float, nullable=False, default=0.0)   # 0.0 – 1.0
     explanation = Column(String(512), nullable=True)           # human-readable reason

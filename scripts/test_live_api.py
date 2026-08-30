@@ -8,6 +8,8 @@ import json
 
 BASE_URL = "http://localhost:8000/api/v1"
 
+__test__ = False
+
 def test_health():
     print("── 1. Testing API Health ───────────────────────────")
     try:

@@ -8,6 +8,7 @@ Falls back to synthetic SearchService when no memories have been uploaded yet.
 
 from __future__ import annotations
 
+import os
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,9 +25,14 @@ router = APIRouter()
 
 def _pick_service(db: Session) -> object:
     """
-    Return DBSearchService if any Memory rows exist (real data),
-    otherwise fall back to the synthetic in-memory SearchService.
+    Return DBSearchService if real memory rows exist, otherwise fall back to the
+    synthetic in-memory SearchService. In test mode we intentionally prefer the
+    synthetic dataset so the semantic recall fixtures remain deterministic and
+    do not depend on a stale local database file.
     """
+    if os.environ.get("TESTING") == "1":
+        return SearchService()
+
     count = db.query(Memory).count()
     if count > 0:
         return DBSearchService(db)
