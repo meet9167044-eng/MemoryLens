@@ -114,10 +114,21 @@ def _to_search_result(memory: Memory, score: float, match_type: str, q: str) -> 
         for e in (memory.entities or [])
     ]
     screenshot_id = str(memory.screenshot_id) if memory.screenshot_id else ""
+
+    # Phase B: use captured_at (real screenshot time) over created_at (upload time)
+    timestamp = (
+        memory.captured_at.isoformat()
+        if memory.captured_at
+        else (memory.created_at.isoformat() if memory.created_at else "")
+    )
+
+    # Phase B: use the real app name extracted by LLM
+    app_name = memory.app_detected or "Unknown"
+
     return SearchResult(
         id=str(memory.id),
-        timestamp=memory.created_at.isoformat() if memory.created_at else "",
-        source=SourceResult(app="Unknown", type=memory.content_type or "other"),
+        timestamp=timestamp,
+        source=SourceResult(app=app_name, type=memory.content_type or "other"),
         title=memory.title or "Untitled",
         summary=memory.summary or "",
         ocr_snippet=_make_snippet(q, memory),
@@ -127,6 +138,7 @@ def _to_search_result(memory: Memory, score: float, match_type: str, q: str) -> 
         relevance_score=round(score, 4),
         match_type=match_type,  # type: ignore[arg-type]
     )
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

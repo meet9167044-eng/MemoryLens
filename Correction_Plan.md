@@ -14,15 +14,16 @@ This document breaks down the end-to-end implementation plan into actionable, st
 - `[x]` **Fix Duplicate Ingestion**: Added SHA-256 hash check in ingest endpoint + `file_hash` column on `Screenshot` model. Migration `2c5f3091dea7` applied.
 - `[x]` **Fix `file_size_bytes` type**: Changed from `String` to `Integer`.
 
-## Phase B: Timestamps & App Detection
+## Phase B: Timestamps & App Detection ✅ COMPLETE
 *Goal: Capture original timestamps from EXIF and persist detected apps.*
 
-- `[ ]` **Database Schema Update**: Add `app_detected` and `captured_at` columns to `Memory` in `backend/app/models/memory.py`.
-- `[ ]` **Alembic Migration**: Generate and apply a migration for the new columns.
-- `[ ]` **EXIF Extraction**: Update `_preprocess()` in `backend/app/jobs/pipeline.py` to extract dates from EXIF or filenames.
-- `[ ]` **Persist App Data**: Update `_ai_extraction()` in `pipeline.py` to save `result.app_detected`.
-- `[ ]` **Search Integration**: Update `backend/app/services/db_search.py` to use `memory.app_detected`.
-- `[ ]` **UI Integration**: Show `app_detected` badges on frontend memory cards.
+- `[x]` **Database Schema Update**: Added `app_detected`, `captured_at`, and `domain` columns to `Memory`.
+- `[x]` **Alembic Migration**: Migration `2c766c3a59a7` generated and applied.
+- `[x]` **EXIF Extraction**: `_preprocess()` in `pipeline.py` now extracts `captured_at` from EXIF → filename patterns → file mtime (priority order).
+- `[x]` **Persist App Data**: `_ai_extraction()` in `pipeline.py` now saves `result.app_detected` to `memory.app_detected`.
+- `[x]` **Search Integration**: `db_search.py` now uses `memory.app_detected` and `memory.captured_at` in search results.
+- `[x]` **Memories API**: `memories.py` uses real `app_detected`, correct timestamp, and sorts by `captured_at` desc.
+- `[x]` **Frontend types**: `InsightStats` interface updated to include all new API fields.
 
 ## Phase C: Real Vector Search
 *Goal: Replace O(n) Python search with fast `pgvector` lookups.*

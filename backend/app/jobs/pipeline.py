@@ -207,15 +207,86 @@ def _execute_pipeline(db: Session, screenshot_id: UUID) -> None:
 
     # ── Stage 1: PREPROCESSING ───────────────────────────────────────────
     def _preprocess():
-        """Verify the file path recorded at ingest time exists on disk."""
-        import os
-        if screenshot.file_path and not os.path.exists(screenshot.file_path):
-            # Non-fatal in dev/test — log a warning but don't crash
-            logger.warning(
-                "Preprocessing: file not found at %s (may be in test env)",
-                screenshot.file_path,
-            )
-        ctx["image_path"] = screenshot.file_path or ""
+        """
+        Verify the file exists and extract the original capture timestamp.
+
+        Priority order for captured_at:
+          1. EXIF DateTimeOriginal (most reliable — set by the OS/app)
+          2. Filename date pattern  (e.g. Screenshot_2024-01-15_14-30.png)
+          3. File mtime             (last resort — may be upload time)
+        """
+        import os, re
+        image_path = screenshot.file_path or ""
+        ctx["image_path"] = image_path
+
+        if image_path and not os.path.exists(image_path):
+            logger.warning("Preprocessing: file not found at %s (may be in test env)", image_path)
+            return
+
+        if not image_path:
+            return
+
+        captured: Optional[datetime] = None
+
+        # 1. EXIF extraction via Pillow
+        try:
+            from PIL import Image
+            from PIL.ExifTags import TAGS
+            img = Image.open(image_path)
+            exif_data = img._getexif()  # type: ignore[attr-defined]
+            if exif_data:
+                for tag_id, value in exif_data.items():
+                    tag = TAGS.get(tag_id, "")
+                    if tag in ("DateTimeOriginal", "DateTime", "DateTimeDigitized"):
+                        try:
+                            captured = datetime.strptime(str(value), "%Y:%m:%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                            logger.debug("EXIF captured_at: %s from tag %s", captured, tag)
+                            break
+                        except ValueError:
+                            pass
+        except Exception as exc:
+            logger.debug("EXIF extraction failed (non-fatal): %s", exc)
+
+        # 2. Filename date pattern (covers Windows/macOS screenshot naming)
+        if not captured:
+            fname = os.path.basename(image_path)
+            patterns = [
+                r"(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})",  # 2024-01-15_14-30-55
+                r"(\d{4})-(\d{2})-(\d{2}) (\d{2})\.(\d{2})\.(\d{2})",  # 2024-01-15 14.30.55
+                r"(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})",        # 20240115_143055
+                r"(\d{4})-(\d{2})-(\d{2})",                              # 2024-01-15 (date only)
+            ]
+            for pattern in patterns:
+                m = re.search(pattern, fname)
+                if m:
+                    try:
+                        groups = m.groups()
+                        if len(groups) == 6:
+                            captured = datetime(int(groups[0]), int(groups[1]), int(groups[2]),
+                                                int(groups[3]), int(groups[4]), int(groups[5]),
+                                                tzinfo=timezone.utc)
+                        elif len(groups) == 3:
+                            captured = datetime(int(groups[0]), int(groups[1]), int(groups[2]),
+                                                tzinfo=timezone.utc)
+                        logger.debug("Filename captured_at: %s from pattern %s", captured, pattern)
+                        break
+                    except (ValueError, IndexError):
+                        pass
+
+        # 3. File mtime as last resort
+        if not captured:
+            try:
+                mtime = os.path.getmtime(image_path)
+                captured = datetime.fromtimestamp(mtime, tz=timezone.utc)
+                logger.debug("mtime captured_at: %s", captured)
+            except OSError:
+                pass
+
+        # Persist captured_at onto the Screenshot row if we found one
+        if captured and not screenshot.captured_at:
+            screenshot.captured_at = captured
+            db.flush()
+            logger.info("Set captured_at=%s for screenshot %s", captured, screenshot_id)
 
     ok = _run_stage(db, jobs[JobStage.PREPROCESSING], _preprocess)
     if not ok:
@@ -291,7 +362,7 @@ def _execute_pipeline(db: Session, screenshot_id: UUID) -> None:
             from app.services.llm_extractor import _stub_result
             result = _stub_result(screenshot.original_filename or "upload.png")
 
-        # Update Memory fields
+        # Update Memory fields from LLM result
         if result.title:
             memory.title = result.title
         if result.summary:
@@ -302,6 +373,15 @@ def _execute_pipeline(db: Session, screenshot_id: UUID) -> None:
         memory.content_type = result.source_type
         memory.confidence_score = result.confidence
         memory.tags = result.tags
+
+        # Phase B: persist app_detected (was being silently discarded before)
+        if result.app_detected and result.app_detected.lower() != "unknown":
+            memory.app_detected = result.app_detected
+            logger.info("app_detected=%r for memory %s", result.app_detected, memory.id)
+
+        # Phase B: sync captured_at from Screenshot → Memory if EXIF was found
+        if screenshot.captured_at and not memory.captured_at:
+            memory.captured_at = screenshot.captured_at
 
         # Delete any stale entity rows and create fresh ones from LLM output
         for old_ent in list(memory.entities):

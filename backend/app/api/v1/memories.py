@@ -28,16 +28,15 @@ router = APIRouter(prefix="/memories", tags=["memories"])
 def map_memory_to_response(db: Session, memory: Memory) -> MemoryResponse:
     """Map a SQLAlchemy Memory object exactly to the frontend MemoryResponse JSON."""
     
-    # 1. Source (Mocked for now since we don't have OS metadata yet)
-    # Default to desktop/browser based on a simple heuristic or fixed
-    app_name = "Unknown App"
-    app_type = "other"
-    if memory.content_type == "screenshot":
-        app_type = "desktop"
+    # 1. Source — Phase B: use real app_detected from LLM extraction
+    app_name = memory.app_detected or "Unknown"
+    app_type = memory.content_type or "other"
+    # Normalise content_type values to frontend-expected enum
+    if app_type not in ("desktop", "browser", "terminal", "document", "other"):
+        app_type = "other"
         
     # 2. Screenshot
     screenshot_id = str(memory.screenshot_id) if memory.screenshot_id else ""
-    # Assume we will expose a route to serve the image raw bytes
     image_url = f"/api/v1/screenshots/{screenshot_id}/image"
     
     # 3. Content
@@ -50,7 +49,6 @@ def map_memory_to_response(db: Session, memory: Memory) -> MemoryResponse:
     # 4. Entities
     entities = []
     for ent in memory.entities:
-        # map backend EntityType to frontend string choices
         frontend_type = "other"
         if ent.entity_type.value in ['technology', 'framework', 'company', 'person', 'project', 'topic', 'tool']:
             frontend_type = ent.entity_type.value
@@ -66,8 +64,7 @@ def map_memory_to_response(db: Session, memory: Memory) -> MemoryResponse:
     # 5. Tags
     tags = memory.tags or []
     
-    # 6. Related Memories (Query them)
-    # Find all relationships where this memory is source or target
+    # 6. Related Memories
     rels = db.query(Relationship).filter(
         or_(Relationship.source_id == memory.id, Relationship.target_id == memory.id)
     ).all()
@@ -75,8 +72,6 @@ def map_memory_to_response(db: Session, memory: Memory) -> MemoryResponse:
     related = []
     for r in rels:
         other_id = r.target_id if r.source_id == memory.id else r.source_id
-        
-        # map relationship type
         rel_type = "semantic_similarity"
         if r.rel_type.value == "shared_entity":
             rel_type = "entity_overlap"
@@ -91,14 +86,21 @@ def map_memory_to_response(db: Session, memory: Memory) -> MemoryResponse:
         
     # 7. Metadata
     metadata = MetadataSchema(
-        language="english", # Placeholder
+        language="english",
         contentType=memory.content_type or "unknown",
         confidence=memory.confidence_score or 0.95
     )
 
+    # Phase B: use captured_at (real screenshot time) over created_at (upload time)
+    timestamp = (
+        memory.captured_at.isoformat()
+        if memory.captured_at
+        else (memory.created_at.isoformat() if memory.created_at else "")
+    )
+
     return MemoryResponse(
         id=str(memory.id),
-        timestamp=memory.created_at.isoformat() if memory.created_at else "",
+        timestamp=timestamp,
         source=SourceSchema(app=app_name, type=app_type),
         screenshot=ScreenshotSchema(id=screenshot_id, imageUrl=image_url),
         content=content,
@@ -116,9 +118,15 @@ def list_memories(
     db: Session = Depends(get_db),
 ):
     """
-    List all memories.
+    List all memories, ordered by captured_at (real screenshot time) desc.
+    Falls back to created_at ordering for memories without EXIF data.
     """
-    memories = db.query(Memory).order_by(Memory.created_at.desc()).offset(skip).limit(limit).all()
+    from sqlalchemy import case
+    order_col = case(
+        (Memory.captured_at.isnot(None), Memory.captured_at),
+        else_=Memory.created_at,
+    )
+    memories = db.query(Memory).order_by(order_col.desc()).offset(skip).limit(limit).all()
     return [map_memory_to_response(db, m) for m in memories]
 
 

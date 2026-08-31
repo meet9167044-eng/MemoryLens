@@ -10,11 +10,8 @@ import os
 # Use standard JSON if running with SQLite in tests, otherwise JSONB for Postgres
 JSON_VARIANT = JSON if os.environ.get("TESTING", "") == "1" else JSONB
 
-
-# NOTE: embedding column is a Text placeholder.
-# Phase 7 member will run: ALTER TABLE memories ADD COLUMN embedding vector(1536)
-# after installing the pgvector server extension.
-EMBEDDING_DIM = 1536
+# Embedding dimension — placeholder until pgvector migration (Phase C)
+EMBEDDING_DIM = 768
 
 
 class Memory(Base):
@@ -25,11 +22,14 @@ class Memory(Base):
     title = Column(String(512), nullable=True)
     summary = Column(Text, nullable=True)
     raw_ocr_text = Column(Text, nullable=True)
-    content_type = Column(String(128), nullable=True)
+    content_type = Column(String(128), nullable=True)     # "browser" | "desktop" | "terminal" | "document" | "other"
+    app_detected = Column(String(256), nullable=True)     # Phase B: "VS Code", "Chrome", "Terminal", etc.
+    captured_at = Column(DateTime(timezone=True), nullable=True)   # Phase B: original screenshot time (EXIF / filename)
+    domain = Column(String(256), nullable=True)           # Phase D: "github.com", "stackoverflow.com"
     tags = Column(JSON_VARIANT, nullable=True, default=list)
     confidence_score = Column(Float, nullable=True)
-    # TODO (Phase 7): Replace with Vector(EMBEDDING_DIM) after pgvector is installed
-    embedding_placeholder = Column(Text, nullable=True, comment="Placeholder for pgvector embedding — Phase 7 will migrate this to vector(1536)")
+    # Phase C will replace this with a pgvector Vector(768) column
+    embedding_placeholder = Column(Text, nullable=True, comment="Placeholder — Phase C migrates this to vector(768)")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
@@ -37,4 +37,5 @@ class Memory(Base):
     entities = relationship("Entity", back_populates="memory", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Memory id={self.id} title={self.title!r}>"
+        return f"<Memory id={self.id} title={self.title!r} app={self.app_detected!r}>"
+

@@ -55,9 +55,15 @@ export interface Memory {
 export interface InsightStats {
   total_memories: number
   total_entities: number
+  total_screenshots: number
   recent_activity_count: number
+  avg_confidence: number | null
+  processing_success_rate: number | null
+  completed_screenshots: number
+  failed_screenshots: number
   top_tags: { name: string; count: number }[]
   top_entities: { name: string; count: number }[]
+  app_breakdown: { name: string; count: number }[]
 }
 
 // ─── Search ─────────────────────────────────────────────────────────────────
