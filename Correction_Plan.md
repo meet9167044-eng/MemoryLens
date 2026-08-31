@@ -1,0 +1,84 @@
+# MemoryLens — Correction & Implementation Plan
+
+This document breaks down the end-to-end implementation plan into actionable, step-by-step phases. It will serve as our master checklist to track progress as we fix bugs and build out the knowledge graph engine.
+
+## Phase A: Codebase Cleanup & Fixes ✅ COMPLETE
+*Goal: Fix immediate bugs (missing metadata, invalid models) and remove dead code.*
+
+- `[x]` **Fix LLM Extraction**: Updated `backend/.env` to use `llama-3.2-11b-vision-preview` (vision) and `llama-3.1-8b-instant` (chat) — this was the root cause of missing tags/summaries.
+- `[x]` **Remove Dead Backend Stub**: Deleted `backend/main.py`.
+- `[x]` **Remove Dead Frontend Pages**: Deleted `Overview.tsx`, `Connections.tsx`, `Memories.tsx`, `Timeline.tsx`, `Insights.tsx`.
+- `[x]` **Create Developer Guide**: Created `DEVELOPER.md` at root with full setup instructions.
+- `[x]` **Update Insights API**: Now returns real `avg_confidence`, `processing_success_rate`, `app_breakdown`.
+- `[x]` **Update Status Doc**: Rewrote `STATUS.md` to reflect actual state.
+- `[x]` **Fix Duplicate Ingestion**: Added SHA-256 hash check in ingest endpoint + `file_hash` column on `Screenshot` model. Migration `2c5f3091dea7` applied.
+- `[x]` **Fix `file_size_bytes` type**: Changed from `String` to `Integer`.
+
+## Phase B: Timestamps & App Detection
+*Goal: Capture original timestamps from EXIF and persist detected apps.*
+
+- `[ ]` **Database Schema Update**: Add `app_detected` and `captured_at` columns to `Memory` in `backend/app/models/memory.py`.
+- `[ ]` **Alembic Migration**: Generate and apply a migration for the new columns.
+- `[ ]` **EXIF Extraction**: Update `_preprocess()` in `backend/app/jobs/pipeline.py` to extract dates from EXIF or filenames.
+- `[ ]` **Persist App Data**: Update `_ai_extraction()` in `pipeline.py` to save `result.app_detected`.
+- `[ ]` **Search Integration**: Update `backend/app/services/db_search.py` to use `memory.app_detected`.
+- `[ ]` **UI Integration**: Show `app_detected` badges on frontend memory cards.
+
+## Phase C: Real Vector Search
+*Goal: Replace O(n) Python search with fast `pgvector` lookups.*
+
+- `[ ]` **Database Schema Update**: Add `embedding` column of type `Vector(768)` to `Memory`.
+- `[ ]` **Alembic Migration**: Generate migration to enable `pgvector` extension, add column, and create an HNSW index.
+- `[ ]` **Pipeline Update**: Update `_embedding()` in `pipeline.py` to store vectors in the new pgvector column.
+- `[ ]` **Local Embedder**: Implement SentenceTransformers in `backend/app/core/local_embedder.py` for offline embeddings.
+- `[ ]` **Search Overhaul**: Rewrite `backend/app/services/db_search.py` to use pgvector cosine operator (`<=>`) mixed with full-text search.
+- `[ ]` **Dependencies**: Add `sentence-transformers` to `requirements.txt`.
+
+## Phase D: Knowledge Graph Engine
+*Goal: Build the core differentiator—linking screenshots by semantics, time, projects, and domains.*
+
+- `[ ]` **Semantic Relationships**: Implement `_score_semantic()` using vector similarity in `backend/app/processing/relationships.py`.
+- `[ ]` **Temporal Relationships**: Implement `_score_temporal()` using `captured_at` proximity.
+- `[ ]` **Project Nodes**: Create `Project` and `MemoryProject` models, and build an auto-detector (`backend/app/services/project_detector.py`).
+- `[ ]` **Domain Linking**: Extend LLM prompt to extract URLs/domains and create a domain scoring function.
+- `[ ]` **Story Grouping**: Create `Story` model and `story_builder.py` to group temporally close memories.
+- `[ ]` **Graph UI**: Add `react-force-graph` and replace the Connections page with an interactive visualization.
+
+## Phase E: Auto-Ingestion
+*Goal: Automate screenshot ingestion by watching folders.*
+
+- `[ ]` **Folder Watcher**: Implement a daemon using `watchdog` to monitor screenshot directories (`backend/app/services/folder_watcher.py`).
+- `[ ]` **Bulk Import API**: Add a bulk import endpoint to `backend/app/api/v1/ingest.py`.
+- `[ ]` **Watch Controller API**: Add endpoints to start/stop the folder watcher (`backend/app/api/v1/watch.py`).
+- `[ ]` **Settings UI**: Add "Auto-capture" toggle in the frontend.
+
+## Phase F: Scalability
+*Goal: Handle 10,000+ screenshots smoothly.*
+
+- `[ ]` **Pipeline Queue**: Replace raw threads with a proper in-process `asyncio.Queue` in `backend/app/jobs/queue.py`.
+- `[ ]` **Optimize Relationships**: Rewrite relationship candidate selection to avoid O(n²) comparisons (use entity overlap / pgvector top-K).
+- `[ ]` **Hash Column**: Add `file_hash` explicitly to the `Screenshot` model and use it for fast deduplication at ingest.
+
+## Phase G: UX Polish
+*Goal: Final touches on search, chat, and timeline.*
+
+- `[ ]` **NL Query Parsing**: Extract intents (dates, entities) from user search queries.
+- `[ ]` **Related Screenshots**: Add a sidebar to `MemoryDetail.tsx` showing linked screenshots.
+- `[ ]` **Timeline UI**: Group memories by date and add a calendar heatmap.
+- `[ ]` **Contextual Chat**: Pass previous search results into the chat context.
+- `[ ]` **Search Facets**: Add clickable filter sidebars (App, Date, Tags, Entities).
+
+## Phase H: Demo & Polish
+*Goal: Ensure the project is portfolio-ready.*
+
+- `[ ]` **Demo Data Script**: Write `scripts/seed_demo.py` to populate realistic fake memories.
+- `[ ]` **Demo Script**: Write a step-by-step walkthrough in `scripts/demo_flow.md`.
+- `[ ]` **README Overhaul**: Simplify `README.md` to a punchy pitch with quick start steps and an architecture diagram.
+
+## Phase I: Extra Improvements
+*Goal: Additional robust enhancements.*
+
+- `[ ]` **Local OCR**: Re-enable PaddleOCR as a fallback local path.
+- `[ ]` **Entity Normalization**: Build a normalizer to merge aliases (e.g., "vscode" and "VS Code").
+- `[ ]` **Rate Limiting**: Add upload limits to the ingest API.
+- `[ ]` **Job Visibility**: Poll pipeline status from the frontend upload modal to show actual progress.

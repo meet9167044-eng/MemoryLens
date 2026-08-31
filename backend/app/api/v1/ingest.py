@@ -113,7 +113,22 @@ async def ingest_screenshot(
     # ── 3. Validate MIME, extension, and decodability ─────────────────────────
     _validate_image(data, file.content_type or "", file.filename or "upload.png")
 
-    # ── 4. Save to disk via StorageProvider ────────────────────────────────────
+    # ── 4. Deduplication check — compute hash BEFORE saving to disk ───────────
+    file_hash = storage.compute_hash(data)
+    existing = db.query(Screenshot).filter(Screenshot.file_hash == file_hash).first()
+    if existing:
+        _log.info("Duplicate upload detected: hash %s already exists as screenshot %s", file_hash, existing.id)
+        return ScreenshotUploadResponse(
+            screenshot_id=existing.id,
+            status=existing.status.value,
+            file_path=existing.file_path,
+            original_filename=existing.original_filename or file.filename or "upload.png",
+            file_size_bytes=existing.file_size_bytes or len(data),
+            file_hash=file_hash,
+            message="Duplicate detected — this screenshot was already ingested. Returning existing record.",
+        )
+
+    # ── 5. Save to disk via StorageProvider ────────────────────────────────────
     try:
         storage_meta = storage.save(data, file.filename or "upload.png")
     except OSError as exc:
@@ -122,11 +137,12 @@ async def ingest_screenshot(
             detail=f"File write error: {exc}",
         )
 
-    # ── 5. Persist Screenshot record in DB ────────────────────────────────────
+    # ── 6. Persist Screenshot record in DB ────────────────────────────────────
     screenshot = Screenshot(
         file_path=storage_meta["file_path"],
         original_filename=file.filename,
-        file_size_bytes=str(storage_meta["file_size_bytes"]),
+        file_size_bytes=storage_meta["file_size_bytes"],    # now Integer
+        file_hash=storage_meta["file_hash"],                # persisted for future dedup checks
         mime_type=file.content_type,
         status=ScreenshotStatus.PENDING,
     )
@@ -134,7 +150,7 @@ async def ingest_screenshot(
     db.commit()
     db.refresh(screenshot)
 
-    # ── 6. Fire background pipeline (Phase 10) ───────────────────────────
+    # ── 7. Fire background pipeline (Phase 10) ───────────────────────────
     _screenshot_id = screenshot.id  # capture before thread starts
     threading.Thread(
         target=_run_pipeline_safe,

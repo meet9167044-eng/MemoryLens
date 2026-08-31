@@ -1,5 +1,5 @@
 import enum, uuid
-from sqlalchemy import Column, String, DateTime, Enum
+from sqlalchemy import Column, String, Integer, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -19,7 +19,8 @@ class Screenshot(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     file_path = Column(String(1024), nullable=False)
     original_filename = Column(String(512), nullable=True)
-    file_size_bytes = Column(String(32), nullable=True)
+    file_size_bytes = Column(Integer, nullable=True)                                     # Fixed: was String
+    file_hash = Column(String(64), nullable=True, index=True, unique=True)               # SHA-256 for deduplication
     mime_type = Column(String(64), nullable=True, default="image/png")
     status = Column(Enum(ScreenshotStatus, name="screenshot_status"), nullable=False, default=ScreenshotStatus.PENDING, index=True)
     captured_at = Column(DateTime(timezone=True), nullable=True)
